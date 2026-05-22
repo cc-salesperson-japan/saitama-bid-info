@@ -43,9 +43,12 @@ export default function FieldChart({ data }: Props) {
     mode === "count" ? b.count - a.count : b.amount - a.amount
   );
 
+  // 分野数に応じて高さを自動調整（1行30px + 余白）
+  const chartHeight = Math.max(400, sorted.length * 30 + 60);
+
   return (
     <div
-      className="bg-white rounded-xl p-5 h-full"
+      className="bg-white rounded-xl p-5"
       style={{ border: "1px solid var(--border)" }}
     >
       <div className="flex items-center justify-between mb-4">
@@ -66,7 +69,7 @@ export default function FieldChart({ data }: Props) {
           ))}
         </div>
       </div>
-      <ResponsiveContainer width="100%" height={360}>
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
           data={sorted}
           layout="vertical"

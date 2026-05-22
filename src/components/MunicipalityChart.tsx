@@ -22,7 +22,7 @@ export default function MunicipalityChart({ data }: Props) {
       <h2 className="text-sm font-semibold mb-4 text-[#1a1a1a]">
         自治体別 案件数（上位15）
       </h2>
-      <ResponsiveContainer width="100%" height={380}>
+      <ResponsiveContainer width="100%" height={Math.max(380, data.length * 26 + 40)}>
         <BarChart data={data} layout="vertical" barCategoryGap="20%">
           <CartesianGrid strokeDasharray="3 3" stroke="#f0ece4" horizontal={false} />
           <XAxis

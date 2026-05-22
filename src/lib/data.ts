@@ -1,6 +1,6 @@
 import { createServerClient } from "./supabase";
 
-// ─── 型定義 ────────────────────────────────────────────
+// ─── チャートコンポーネント用型 ─────────────────────────
 
 export type SummaryData = {
   totalCases: number;
@@ -66,10 +66,32 @@ export type DashboardData = {
   companies: CompanyPoint[];
 };
 
-// ─── ヘルパー ────────────────────────────────────────────
+// ─── 正規化済み生行データ型（クライアントサイド処理用）─────
 
-const isFuteki = (r: Record<string, unknown>) =>
-  r["不調"] === true || r["不調"] === "true";
+export type RawRow = {
+  source: "ken" | "city";
+  year: number;
+  date: string;
+  issuer: string;   // 発注部局 or 調達機関名
+  field: string;    // 分野分類
+  amount: number | null;
+  plannedPrice: number | null;
+  winRate: number | null;
+  surveyRate: number | null;
+  futeki: boolean;
+  company: string | null;
+  procMethod: string;
+};
+
+export type RawDataResult = {
+  rows: RawRow[];
+  kenIssuers: string[];   // ユニーク発注部局
+  cityIssuers: string[];  // ユニーク自治体名
+  allFields: string[];    // ユニーク分野分類
+  allYears: number[];     // ユニーク年度
+};
+
+// ─── ヘルパー ────────────────────────────────────────────
 
 function median(values: number[]): number | null {
   if (!values.length) return null;
@@ -115,115 +137,125 @@ function normalizeProcurement(method: string): string {
   return "その他";
 }
 
-// 会計年度の月順 (4月=1番目, ..., 3月=12番目)
+// 会計年度の月順
 const FY_MONTH_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
-// ─── 内部型 ──────────────────────────────────────────────────────
+type DbRow = { [key: string]: unknown };
 
-type Row = { [key: string]: unknown };
+// ─── サーバーサイド: 全生データ取得 ───────────────────────
 
-// ─── データ取得 & 集計 ────────────────────────────────────────────
-
-export async function fetchDashboardData(
-  year: string,
-  issuer: string
-): Promise<DashboardData> {
+export async function fetchAllRawData(): Promise<RawDataResult> {
   const supabase = createServerClient();
 
-  const shouldFetchKen = issuer === "all" || issuer === "ken";
-  const shouldFetchCity = issuer === "all" || issuer === "city";
-  const yearFilter = year !== "all" ? parseInt(year) : null;
-
-  // city_rakusatsu の必要カラムだけ取得
-  const citySelect =
-    "調達機関名,入札方式,開札日,年度,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率";
-  // ken_rakusatsu の必要カラムだけ取得
-  const kenSelect =
-    "入札方式,開札日,年度,発注部局,発注方式,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率";
-
-  // 並列フェッチ
-  const [cityRes, kenRes, cityAllRes, kenAllRes] = await Promise.all([
-    // フィルタあり（summary / field / company 用）
-    shouldFetchCity
-      ? supabase
-          .from("city_rakusatsu")
-          .select(citySelect)
-          .then((r) => {
-            const d = (r.data || []) as unknown as Row[];
-            return yearFilter ? d.filter((x) => x["年度"] === yearFilter) : d;
-          })
-      : Promise.resolve([]),
-
-    shouldFetchKen
-      ? supabase
-          .from("ken_rakusatsu")
-          .select(kenSelect)
-          .then((r) => {
-            const d = (r.data || []) as unknown as Row[];
-            return yearFilter ? d.filter((x) => x["年度"] === yearFilter) : d;
-          })
-      : Promise.resolve([]),
-
-    // 全期間（monthly chart / municipality / ken stats 用）
+  const [cityRes, kenRes] = await Promise.all([
     supabase
       .from("city_rakusatsu")
-      .select("調達機関名,開札日,年度,不調,落札率,調査価格率,予定価格")
-      .then((r) => (r.data || []) as unknown as Row[]),
-
+      .select(
+        "調達機関名,入札方式,開札日,年度,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率"
+      )
+      .then((r) => (r.data || []) as unknown as DbRow[]),
     supabase
       .from("ken_rakusatsu")
-      .select("開札日,年度,発注部局,発注方式,不調,落札率,調査価格率,予定価格")
-      .then((r) => (r.data || []) as unknown as Row[]),
+      .select(
+        "入札方式,開札日,年度,発注部局,発注方式,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率"
+      )
+      .then((r) => (r.data || []) as unknown as DbRow[]),
   ]);
 
-  const cityData = cityRes as Row[];
-  const kenData = kenRes as Row[];
-  const cityAll = (cityAllRes as Row[]) ?? [];
-  const kenAll = (kenAllRes as Row[]) ?? [];
+  const cityRows: RawRow[] = cityRes.map((r) => ({
+    source: "city" as const,
+    year: (r["年度"] as number) || 0,
+    date: (r["開札日"] as string) || "",
+    issuer: (r["調達機関名"] as string) || "その他",
+    field: (r["分野分類"] as string) || "その他",
+    amount: r["落札金額"] as number | null,
+    plannedPrice: r["予定価格"] as number | null,
+    winRate: r["落札率"] as number | null,
+    surveyRate: r["調査価格率"] as number | null,
+    futeki: r["不調"] === true || r["不調"] === "true",
+    company: r["落札業者名"] as string | null,
+    procMethod: normalizeProcurement((r["入札方式"] || "") as string),
+  }));
 
-  const combined = [...cityData, ...kenData];
+  const kenRows: RawRow[] = kenRes.map((r) => ({
+    source: "ken" as const,
+    year: (r["年度"] as number) || 0,
+    date: (r["開札日"] as string) || "",
+    issuer: (r["発注部局"] as string) || "その他部局",
+    field: (r["分野分類"] as string) || "その他",
+    amount: r["落札金額"] as number | null,
+    plannedPrice: r["予定価格"] as number | null,
+    winRate: r["落札率"] as number | null,
+    surveyRate: r["調査価格率"] as number | null,
+    futeki: r["不調"] === true || r["不調"] === "true",
+    company: r["落札業者名"] as string | null,
+    procMethod: normalizeProcurement(
+      ((r["発注方式"] || r["入札方式"] || "") as string)
+    ),
+  }));
 
-  // ── 利用可能な年度一覧 ──
-  const years = [...new Set([...cityAll, ...kenAll].map((r) => r["年度"] as number))]
+  const rows = [...cityRows, ...kenRows];
+
+  const kenIssuers = [...new Set(kenRows.map((r) => r.issuer))]
     .filter(Boolean)
     .sort();
+  const cityIssuers = [...new Set(cityRows.map((r) => r.issuer))]
+    .filter(Boolean)
+    .sort();
+  const allFields = [...new Set(rows.map((r) => r.field))]
+    .filter(Boolean)
+    .sort();
+  const allYears = ([
+    ...new Set(rows.map((r) => r.year)),
+  ] as number[])
+    .filter(Boolean)
+    .sort((a, b) => a - b);
+
+  return { rows, kenIssuers, cityIssuers, allFields, allYears };
+}
+
+// ─── クライアントサイド: フィルタ済み行から集計 ───────────
+
+export function computeDashboardData(rows: RawRow[]): DashboardData {
+  // フィルタ後データ内の年度一覧
+  const years = ([...new Set(rows.map((r) => r.year))] as number[])
+    .filter(Boolean)
+    .sort((a, b) => a - b);
 
   // ── Summary ──
-  const amounts = combined
-    .map((r) => r["落札金額"] as number | null)
+  const amounts = rows
+    .map((r) => r.amount)
     .filter((v): v is number => v != null && v > 0);
   const totalAmount = amounts.reduce((s, v) => s + v, 0);
-  const winRates = combined
-    .filter((r) => !isFuteki(r))
-    .map((r) => r["落札率"] as number | null)
+  const winRates = rows
+    .filter((r) => !r.futeki)
+    .map((r) => r.winRate)
     .filter((v): v is number => v != null);
-  const surveyRates = combined
-    .filter((r) => !isFuteki(r))
-    .map((r) => r["調査価格率"] as number | null)
+  const surveyRates = rows
+    .filter((r) => !r.futeki)
+    .map((r) => r.surveyRate)
     .filter((v): v is number => v != null);
 
   const summary: SummaryData = {
-    totalCases: combined.length,
+    totalCases: rows.length,
     totalAmount: Math.round(totalAmount / 10000),
-    avgAmount: amounts.length ? Math.round(totalAmount / amounts.length / 10000) : 0,
-    futekiCount: combined.filter(isFuteki).length,
+    avgAmount: amounts.length
+      ? Math.round(totalAmount / amounts.length / 10000)
+      : 0,
+    futekiCount: rows.filter((r) => r.futeki).length,
     avgWinRate: pct(avg(winRates)),
     avgSurveyRate: pct(avg(surveyRates)),
   };
 
-  // ── Monthly chart（常に全年度・issuerフィルタのみ）──
-  const monthlySource = [
-    ...(shouldFetchCity ? cityAll : []),
-    ...(shouldFetchKen ? kenAll : []),
-  ];
+  // ── 月別グラフ ──
   const monthlyMap: Record<string, Record<number, number>> = {};
   FY_MONTH_ORDER.forEach((m) => {
     monthlyMap[`${m}月`] = {};
   });
-  monthlySource.forEach((r) => {
-    if (!r["開札日"]) return;
-    const m = new Date(r["開札日"] as string).getMonth() + 1;
-    const fy = r["年度"] as number;
+  rows.forEach((r) => {
+    if (!r.date) return;
+    const m = new Date(r.date).getMonth() + 1;
+    const fy = r.year;
     const key = `${m}月`;
     if (monthlyMap[key]) {
       monthlyMap[key][fy] = (monthlyMap[key][fy] || 0) + 1;
@@ -240,12 +272,11 @@ export async function fetchDashboardData(
 
   // ── 分野別 ──
   const fieldMap: Record<string, { count: number; amount: number }> = {};
-  combined.forEach((r) => {
-    const field = (r["分野分類"] as string) || "その他";
+  rows.forEach((r) => {
+    const field = r.field || "その他";
     if (!fieldMap[field]) fieldMap[field] = { count: 0, amount: 0 };
     fieldMap[field].count++;
-    const amt = r["落札金額"] as number | null;
-    if (amt) fieldMap[field].amount += amt;
+    if (r.amount) fieldMap[field].amount += r.amount;
   });
   const fields: FieldPoint[] = Object.entries(fieldMap)
     .map(([name, { count, amount }]) => ({
@@ -255,53 +286,58 @@ export async function fetchDashboardData(
     }))
     .sort((a, b) => b.count - a.count);
 
-  // ── 自治体別（常に全期間の city_rakusatsu）──
+  // ── 自治体別 ──
   const muniMap: Record<string, number> = {};
-  cityAll.forEach((r) => {
-    const name = r["調達機関名"] as string;
-    if (name) muniMap[name] = (muniMap[name] || 0) + 1;
-  });
+  rows
+    .filter((r) => r.source === "city")
+    .forEach((r) => {
+      if (r.issuer) muniMap[r.issuer] = (muniMap[r.issuer] || 0) + 1;
+    });
   const municipalities: MunicipalityPoint[] = Object.entries(muniMap)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 15);
 
-  // ── 発注方式（常に ken_rakusatsu 全期間）──
+  // ── 発注方式 ──
   const procMap: Record<string, number> = {};
-  kenAll.forEach((r) => {
-    const method = normalizeProcurement(
-      (r["発注方式"] || r["入札方式"] || "") as string
-    );
-    procMap[method] = (procMap[method] || 0) + 1;
-  });
+  rows
+    .filter((r) => r.source === "ken")
+    .forEach((r) => {
+      procMap[r.procMethod] = (procMap[r.procMethod] || 0) + 1;
+    });
   const procurement: ProcurementPoint[] = Object.entries(procMap)
     .map(([method, count]) => ({ method, count }))
     .sort((a, b) => b.count - a.count);
 
-  // ── 発注部局（常に ken_rakusatsu 全期間）──
+  // ── 発注部局 ──
   const deptMap: Record<string, number> = {};
-  kenAll.forEach((r) => {
-    const dept = (r["発注部局"] as string) || "その他部局";
-    deptMap[dept] = (deptMap[dept] || 0) + 1;
-  });
+  rows
+    .filter((r) => r.source === "ken")
+    .forEach((r) => {
+      const dept = r.issuer || "その他部局";
+      deptMap[dept] = (deptMap[dept] || 0) + 1;
+    });
   const departments: DepartmentPoint[] = Object.entries(deptMap)
     .map(([name, count]) => ({ name, count }))
     .sort((a, b) => b.count - a.count)
     .slice(0, 8);
 
   // ── 落札率・調査価格率統計 ──
-  const kenRates = kenAll
-    .filter((r) => !isFuteki(r) && r["落札率"] != null)
-    .map((r) => r["落札率"] as number);
-  const cityRates = cityAll
-    .filter((r) => !isFuteki(r) && r["落札率"] != null)
-    .map((r) => r["落札率"] as number);
-  const kenSurveyRates = kenAll
-    .filter((r) => r["調査価格率"] != null)
-    .map((r) => r["調査価格率"] as number);
-  const citySurveyRates = cityAll
-    .filter((r) => r["調査価格率"] != null)
-    .map((r) => r["調査価格率"] as number);
+  const kenRows = rows.filter((r) => r.source === "ken");
+  const cityRowsData = rows.filter((r) => r.source === "city");
+
+  const kenRates = kenRows
+    .filter((r) => !r.futeki && r.winRate != null)
+    .map((r) => r.winRate as number);
+  const cityRates = cityRowsData
+    .filter((r) => !r.futeki && r.winRate != null)
+    .map((r) => r.winRate as number);
+  const kenSurveyRates = kenRows
+    .filter((r) => r.surveyRate != null)
+    .map((r) => r.surveyRate as number);
+  const citySurveyRates = cityRowsData
+    .filter((r) => r.surveyRate != null)
+    .map((r) => r.surveyRate as number);
 
   const winRateStats: WinRateStats = {
     kenAvgRate: pct(avg(kenRates)),
@@ -310,23 +346,21 @@ export async function fetchDashboardData(
     cityMedianRate: pct(median(cityRates)),
     kenAvgSurveyRate: pct(avg(kenSurveyRates)),
     cityAvgSurveyRate: pct(avg(citySurveyRates)),
-    kenNoPriceCount: kenAll.filter((r) => r["予定価格"] == null).length,
-    cityNoPriceCount: cityAll.filter((r) => r["予定価格"] == null).length,
+    kenNoPriceCount: kenRows.filter((r) => r.plannedPrice == null).length,
+    cityNoPriceCount: cityRowsData.filter((r) => r.plannedPrice == null).length,
   };
 
   // ── 落札業者ランキング ──
   const companyMap: Record<string, { count: number; amount: number }> = {};
-  combined.forEach((r) => {
-    if (isFuteki(r)) return;
-    const rawName = r["落札業者名"] as string | null;
-    if (!rawName) return;
-    const name = normalizeCompany(rawName);
-    if (!name) return;
-    if (!companyMap[name]) companyMap[name] = { count: 0, amount: 0 };
-    companyMap[name].count++;
-    const amt = r["落札金額"] as number | null;
-    if (amt) companyMap[name].amount += amt;
-  });
+  rows
+    .filter((r) => !r.futeki && r.company)
+    .forEach((r) => {
+      const name = normalizeCompany(r.company!);
+      if (!name) return;
+      if (!companyMap[name]) companyMap[name] = { count: 0, amount: 0 };
+      companyMap[name].count++;
+      if (r.amount) companyMap[name].amount += r.amount;
+    });
   const companies: CompanyPoint[] = Object.entries(companyMap)
     .map(([name, { count, amount }]) => ({
       name,

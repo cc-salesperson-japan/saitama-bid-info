@@ -1,24 +1,11 @@
-import { fetchDashboardData } from "@/lib/data";
-import FilterBar from "@/components/FilterBar";
-import SummaryCards from "@/components/SummaryCards";
-import MonthlyChart from "@/components/MonthlyChart";
-import FieldChart from "@/components/FieldChart";
-import MunicipalityChart from "@/components/MunicipalityChart";
-import ProcurementChart from "@/components/ProcurementChart";
-import DepartmentTable from "@/components/DepartmentTable";
-import WinRateStatsCard from "@/components/WinRateStats";
-import CompanyRanking from "@/components/CompanyRanking";
+import { fetchAllRawData } from "@/lib/data";
+import Dashboard from "@/components/Dashboard";
 
-type SearchParams = Promise<{ year?: string; issuer?: string }>;
+// 1時間ごとにデータを再取得（ISR）
+export const revalidate = 3600;
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: SearchParams;
-}) {
-  const { year = "all", issuer = "all" } = await searchParams;
-
-  const data = await fetchDashboardData(year, issuer);
+export default async function Page() {
+  const rawData = await fetchAllRawData();
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6">
@@ -32,34 +19,8 @@ export default async function Page({
         </p>
       </div>
 
-      {/* フィルターバー */}
-      <FilterBar year={year} issuer={issuer} />
-
-      {/* サマリーカード */}
-      <SummaryCards data={data.summary} />
-
-      {/* 月別グラフ */}
-      <MonthlyChart data={data.monthly} years={data.years} />
-
-      {/* 分野別 + 自治体別 */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
-        <div className="md:col-span-2">
-          <FieldChart data={data.fields} />
-        </div>
-        <div className="md:col-span-3">
-          <MunicipalityChart data={data.municipalities} />
-        </div>
-      </div>
-
-      {/* 発注方式 + 発注部局 + 落札率 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <ProcurementChart data={data.procurement} />
-        <DepartmentTable data={data.departments} />
-        <WinRateStatsCard data={data.winRateStats} />
-      </div>
-
-      {/* 落札業者ランキング */}
-      <CompanyRanking data={data.companies} />
+      {/* ダッシュボード（クライアントサイドフィルタリング） */}
+      <Dashboard rawData={rawData} />
 
       {/* フッター */}
       <p className="text-xs text-center text-[#6b7280] mt-6">
