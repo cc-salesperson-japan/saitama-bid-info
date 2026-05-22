@@ -140,6 +140,51 @@ function normalizeProcurement(method: string): string {
 // 会計年度の月順
 const FY_MONTH_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
+// ─── 部局・分野の表示順 ─────────────────────────────────
+
+export const DEPT_ORDER = [
+  "県土整備部",
+  "下水道局",
+  "企業局",
+  "農林部",
+  "都市整備部",
+  "その他部局",
+];
+
+export const FIELD_ORDER = [
+  "河川・砂防",
+  "道路",
+  "上水道",
+  "下水道",
+  "農業土木",
+  "森林土木",
+  "公園・緑地",
+  "都市計画",
+  "橋梁",
+  "トンネル",
+  "防災",
+  "発注者支援",
+  "施工監理",
+  "測量",
+  "地質地盤",
+  "廃棄物",
+  "測定・検査・調査",
+  "設備設計",
+  "補償",
+  "その他",
+];
+
+export function sortByOrder(items: string[], order: string[]): string[] {
+  return [...items].sort((a, b) => {
+    const ia = order.indexOf(a);
+    const ib = order.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b, "ja");
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
 type DbRow = { [key: string]: unknown };
 
 // ─── サーバーサイド: 全生データ取得 ───────────────────────
@@ -147,19 +192,32 @@ type DbRow = { [key: string]: unknown };
 export async function fetchAllRawData(): Promise<RawDataResult> {
   const supabase = createServerClient();
 
+  // Supabaseのデフォルト上限（1000行）を超えるためページネーション
+  const fetchAll = async (table: string, select: string): Promise<DbRow[]> => {
+    const PAGE = 1000;
+    const all: DbRow[] = [];
+    let from = 0;
+    for (;;) {
+      const { data, error } = await supabase
+        .from(table)
+        .select(select)
+        .range(from, from + PAGE - 1);
+      if (error || !data?.length) break;
+      all.push(...(data as unknown as DbRow[]));
+      if (data.length < PAGE) break;
+      from += PAGE;
+    }
+    return all;
+  };
+
+  const citySelect =
+    "調達機関名,入札方式,開札日,年度,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率";
+  const kenSelect =
+    "入札方式,開札日,年度,発注部局,発注方式,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率";
+
   const [cityRes, kenRes] = await Promise.all([
-    supabase
-      .from("city_rakusatsu")
-      .select(
-        "調達機関名,入札方式,開札日,年度,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率"
-      )
-      .then((r) => (r.data || []) as unknown as DbRow[]),
-    supabase
-      .from("ken_rakusatsu")
-      .select(
-        "入札方式,開札日,年度,発注部局,発注方式,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率"
-      )
-      .then((r) => (r.data || []) as unknown as DbRow[]),
+    fetchAll("city_rakusatsu", citySelect),
+    fetchAll("ken_rakusatsu", kenSelect),
   ]);
 
   const cityRows: RawRow[] = cityRes.map((r) => ({

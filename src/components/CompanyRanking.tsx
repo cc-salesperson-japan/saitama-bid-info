@@ -1,8 +1,8 @@
 import type { CompanyPoint } from "@/lib/data";
 
-type Props = { data: CompanyPoint[] };
+type Props = { data: CompanyPoint[]; issuerLabel?: string };
 
-export default function CompanyRanking({ data }: Props) {
+export default function CompanyRanking({ data, issuerLabel = "全機関" }: Props) {
   // 10件ずつ左右に分割
   const left = data.slice(0, 10);
   const right = data.slice(10, 20);
@@ -13,7 +13,7 @@ export default function CompanyRanking({ data }: Props) {
       style={{ border: "1px solid var(--border)" }}
     >
       <h2 className="text-sm font-semibold mb-4 text-[#1a1a1a]">
-        落札業者ランキング（件数上位20・県＋自治体合算）
+        落札業者ランキング（件数上位20・{issuerLabel}合算）
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
         {[left, right].map((col, ci) => (

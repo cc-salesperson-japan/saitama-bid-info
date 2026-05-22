@@ -11,9 +11,9 @@ const METHOD_COLORS: Record<string, string> = {
   その他: "#94a3b8",
 };
 
-type Props = { data: ProcurementPoint[] };
+type Props = { data: ProcurementPoint[]; issuerLabel?: string };
 
-export default function ProcurementChart({ data }: Props) {
+export default function ProcurementChart({ data, issuerLabel = "全機関" }: Props) {
   const total = data.reduce((s, d) => s + d.count, 0);
 
   return (
@@ -22,7 +22,7 @@ export default function ProcurementChart({ data }: Props) {
       style={{ border: "1px solid var(--border)" }}
     >
       <h2 className="text-sm font-semibold mb-1 text-[#1a1a1a]">
-        発注方式（埼玉県）
+        発注方式（{issuerLabel}）
       </h2>
 
       {/* 凡例 */}

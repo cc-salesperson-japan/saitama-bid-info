@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import type { RawDataResult, RawRow } from "@/lib/data";
-import { computeDashboardData } from "@/lib/data";
+import { computeDashboardData, sortByOrder, DEPT_ORDER, FIELD_ORDER } from "@/lib/data";
 import FilterBar from "./FilterBar";
 import SummaryCards from "./SummaryCards";
 import MonthlyChart from "./MonthlyChart";
@@ -14,10 +14,60 @@ import CompanyRanking from "./CompanyRanking";
 
 type Props = { rawData: RawDataResult };
 
+// ── フィルター選択状態からラベル文字列を生成 ──────────────
+function makeIssuerLabel(
+  selectedIssuers: Set<string>,
+  kenIssuers: string[],
+  cityIssuers: string[]
+): string {
+  const total = kenIssuers.length + cityIssuers.length;
+  if (selectedIssuers.size === 0) return "なし";
+  if (selectedIssuers.size === total) return "全機関";
+
+  const selKen = kenIssuers.filter((i) => selectedIssuers.has(i));
+  const selCity = cityIssuers.filter((i) => selectedIssuers.has(i));
+
+  const parts: string[] = [];
+
+  // 埼玉県側
+  if (selKen.length === kenIssuers.length) {
+    parts.push("埼玉県");
+  } else if (selKen.length === 1) {
+    parts.push(selKen[0]);
+  } else if (selKen.length > 1) {
+    parts.push(`${selKen[0]}ほか`);
+  }
+
+  // 自治体側
+  if (selCity.length === cityIssuers.length) {
+    parts.push("全自治体");
+  } else if (selCity.length === 1) {
+    parts.push(selCity[0]);
+  } else if (selCity.length > 1) {
+    parts.push(`${selCity[0]}ほか`);
+  }
+
+  return parts.join("・") || "なし";
+}
+
 export default function Dashboard({ rawData }: Props) {
   const { rows, kenIssuers, cityIssuers, allFields, allYears } = rawData;
 
-  // ─── フィルター状態 ───────────────────────────────────
+  // ── 表示順でソート ────────────────────────────────────────
+  const sortedKenIssuers = useMemo(
+    () => sortByOrder(kenIssuers, DEPT_ORDER),
+    [kenIssuers]
+  );
+  const sortedCityIssuers = useMemo(
+    () => [...cityIssuers].sort((a, b) => a.localeCompare(b, "ja")),
+    [cityIssuers]
+  );
+  const sortedFields = useMemo(
+    () => sortByOrder(allFields, FIELD_ORDER),
+    [allFields]
+  );
+
+  // ── フィルター状態 ────────────────────────────────────────
   const [year, setYear] = useState("all");
   const [selectedIssuers, setSelectedIssuers] = useState<Set<string>>(
     () => new Set([...kenIssuers, ...cityIssuers])
@@ -26,7 +76,7 @@ export default function Dashboard({ rawData }: Props) {
     () => new Set(allFields)
   );
 
-  // ─── フィルタ適用 ─────────────────────────────────────
+  // ── フィルタ適用 ──────────────────────────────────────────
   const filteredRows = useMemo(() => {
     return rows.filter((r: RawRow) => {
       if (year !== "all" && r.year !== parseInt(year)) return false;
@@ -36,54 +86,53 @@ export default function Dashboard({ rawData }: Props) {
     });
   }, [rows, year, selectedIssuers, selectedFields]);
 
-  // ─── 集計（フィルタ変更のたびに再計算）──────────────────
+  // ── 集計 ─────────────────────────────────────────────────
   const data = useMemo(
     () => computeDashboardData(filteredRows),
     [filteredRows]
   );
 
-  // 月別グラフは全年度を凡例に含める（全期間表示時）
-  const chartYears = useMemo(() => {
-    return year === "all" ? allYears : data.years;
-  }, [year, allYears, data.years]);
+  const chartYears = useMemo(
+    () => (year === "all" ? allYears : data.years),
+    [year, allYears, data.years]
+  );
+
+  // ── 発注者ラベル（タイトル用） ─────────────────────────────
+  const issuerLabel = useMemo(
+    () => makeIssuerLabel(selectedIssuers, sortedKenIssuers, sortedCityIssuers),
+    [selectedIssuers, sortedKenIssuers, sortedCityIssuers]
+  );
 
   return (
     <>
-      {/* フィルターバー */}
       <FilterBar
         year={year}
         onYearChange={setYear}
-        kenIssuers={kenIssuers}
-        cityIssuers={cityIssuers}
+        kenIssuers={sortedKenIssuers}
+        cityIssuers={sortedCityIssuers}
         selectedIssuers={selectedIssuers}
         onIssuersChange={setSelectedIssuers}
-        allFields={allFields}
+        allFields={sortedFields}
         selectedFields={selectedFields}
         onFieldsChange={setSelectedFields}
       />
 
-      {/* サマリーカード */}
       <SummaryCards data={data.summary} />
 
-      {/* 月別グラフ */}
       <MonthlyChart data={data.monthly} years={chartYears} />
 
-      {/* 分野別（全幅・高さ自動） */}
       <div className="mb-4">
         <FieldChart data={data.fields} />
       </div>
 
-      {/* 発注方式 + 発注部局 + 落札率統計 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <ProcurementChart data={data.procurement} />
+        <ProcurementChart data={data.procurement} issuerLabel={issuerLabel} />
         <DepartmentTable data={data.departments} />
         <WinRateStatsCard data={data.winRateStats} />
       </div>
 
-      {/* 落札業者ランキング */}
-      <CompanyRanking data={data.companies} />
+      <CompanyRanking data={data.companies} issuerLabel={issuerLabel} />
 
-      {/* 自治体別（下部・重要度低） */}
       <div className="mt-4">
         <MunicipalityChart data={data.municipalities} />
       </div>
