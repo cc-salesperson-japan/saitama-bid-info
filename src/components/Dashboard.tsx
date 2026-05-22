@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import type { RawDataResult, RawRow } from "@/lib/data";
-import { computeDashboardData, sortByOrder, DEPT_ORDER, FIELD_ORDER } from "@/lib/data";
+import { computeDashboardData, sortByOrder, DEPT_ORDER, FIELD_ORDER, CITY_ORDER } from "@/lib/data";
 import FilterBar from "./FilterBar";
 import SummaryCards from "./SummaryCards";
 import MonthlyChart from "./MonthlyChart";
@@ -59,7 +59,7 @@ export default function Dashboard({ rawData }: Props) {
     [kenIssuers]
   );
   const sortedCityIssuers = useMemo(
-    () => [...cityIssuers].sort((a, b) => a.localeCompare(b, "ja")),
+    () => sortByOrder(cityIssuers, CITY_ORDER),
     [cityIssuers]
   );
   const sortedFields = useMemo(
@@ -133,9 +133,10 @@ export default function Dashboard({ rawData }: Props) {
 
       <CompanyRanking data={data.companies} issuerLabel={issuerLabel} />
 
-      <div className="mt-4">
+      {/* 自治体別案件数は一時停止（重要度低） */}
+      {/* <div className="mt-4">
         <MunicipalityChart data={data.municipalities} />
-      </div>
+      </div> */}
     </>
   );
 }

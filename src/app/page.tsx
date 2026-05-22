@@ -1,5 +1,6 @@
 import { fetchAllRawData } from "@/lib/data";
 import Dashboard from "@/components/Dashboard";
+import TermsDisclaimer from "@/components/TermsDisclaimer";
 
 // 1時間ごとにデータを再取得（ISR）
 export const revalidate = 3600;
@@ -22,8 +23,11 @@ export default async function Page() {
       {/* ダッシュボード（クライアントサイドフィルタリング） */}
       <Dashboard rawData={rawData} />
 
+      {/* 利用規約・免責事項 */}
+      <TermsDisclaimer />
+
       {/* フッター */}
-      <p className="text-xs text-center text-[#6b7280] mt-6">
+      <p className="text-xs text-center text-[#6b7280] mt-4 pb-4">
         Powered by AnkenGet｜データ出典: 埼玉県電子入札システム
       </p>
     </div>
