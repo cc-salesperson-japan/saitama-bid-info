@@ -32,7 +32,7 @@ export default async function Page() {
             rel="noopener noreferrer"
             className="underline underline-offset-2 hover:text-[#1a1a1a] transition-colors"
           >
-            埼玉県 入札情報公開システム
+            データ出典：埼玉県 入札情報公開システム
           </a>
           {formattedDate && (
             <span className="ml-2 text-[#9ca3af]">
@@ -50,7 +50,7 @@ export default async function Page() {
 
       {/* フッター */}
       <p className="text-xs text-center text-[#6b7280] mt-4 pb-4">
-        Powered by AnkenGet｜データ出典: 埼玉県電子入札システム
+        Powered by AnkenGet
       </p>
     </div>
   );
