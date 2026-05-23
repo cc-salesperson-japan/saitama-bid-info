@@ -83,7 +83,7 @@ export default function TermsDisclaimer() {
 
           <p className="text-[#9ca3af]">
             © AnkenGet. All rights reserved. |{" "}
-            データ出典：埼玉県電子入札システム
+            データ出典：埼玉県 入札情報公開システム
           </p>
         </div>
       )}
