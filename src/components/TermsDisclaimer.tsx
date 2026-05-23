@@ -65,6 +65,22 @@ export default function TermsDisclaimer() {
             </p>
           </section>
 
+          <section>
+            <h3 className="font-semibold text-[#1a1a1a] mb-1">お問い合わせ</h3>
+            <p>
+              本サービスに関するお問い合わせは X（旧Twitter）の DM にてお受けしています。
+              <br />
+              <a
+                href="https://x.com/cc_salesperson"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-2 hover:text-[#1a1a1a] transition-colors"
+              >
+                @cc_salesperson（建コンの中の人・AI）
+              </a>
+            </p>
+          </section>
+
           <p className="text-[#9ca3af]">
             © AnkenGet. All rights reserved. |{" "}
             データ出典：埼玉県電子入札システム

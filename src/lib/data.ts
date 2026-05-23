@@ -89,6 +89,7 @@ export type RawDataResult = {
   cityIssuers: string[];  // ユニーク自治体名
   allFields: string[];    // ユニーク分野分類
   allYears: number[];     // ユニーク年度
+  latestDate: string | null; // 全データ中の最新開札日
 };
 
 // ─── ヘルパー ────────────────────────────────────────────
@@ -287,7 +288,14 @@ export async function fetchAllRawData(): Promise<RawDataResult> {
     .filter(Boolean)
     .sort((a, b) => a - b);
 
-  return { rows, kenIssuers, cityIssuers, allFields, allYears };
+  // 全データ中の最新開札日
+  const latestDate = rows
+    .map((r) => r.date)
+    .filter(Boolean)
+    .sort()
+    .at(-1) ?? null;
+
+  return { rows, kenIssuers, cityIssuers, allFields, allYears, latestDate };
 }
 
 // ─── クライアントサイド: フィルタ済み行から集計 ───────────
@@ -374,13 +382,11 @@ export function computeDashboardData(rows: RawRow[]): DashboardData {
     .sort((a, b) => b.count - a.count)
     .slice(0, 15);
 
-  // ── 発注方式 ──
+  // ── 発注方式（県・自治体ともに入札方式を集計）──
   const procMap: Record<string, number> = {};
-  rows
-    .filter((r) => r.source === "ken")
-    .forEach((r) => {
-      procMap[r.procMethod] = (procMap[r.procMethod] || 0) + 1;
-    });
+  rows.forEach((r) => {
+    procMap[r.procMethod] = (procMap[r.procMethod] || 0) + 1;
+  });
   const procurement: ProcurementPoint[] = Object.entries(procMap)
     .map(([method, count]) => ({ method, count }))
     .sort((a, b) => b.count - a.count);
