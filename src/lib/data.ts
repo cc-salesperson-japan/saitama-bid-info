@@ -443,6 +443,7 @@ export function computeDashboardData(rows: RawRow[]): DashboardData {
       companyMap[name].count++;
       if (r.amount) companyMap[name].amount += r.amount;
     });
+  // 50件渡してコンポーネント側で「件数順／金額順」を切り替え
   const companies: CompanyPoint[] = Object.entries(companyMap)
     .map(([name, { count, amount }]) => ({
       name,
@@ -450,7 +451,7 @@ export function computeDashboardData(rows: RawRow[]): DashboardData {
       totalAmount: Math.round(amount / 10000),
     }))
     .sort((a, b) => b.count - a.count)
-    .slice(0, 20);
+    .slice(0, 50);
 
   return {
     years,
