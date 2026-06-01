@@ -5,10 +5,12 @@ import { checkEmailApproved } from "./actions";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type Status = "idle" | "pending" | "sent" | "not_approved" | "error";
+type State = { status: Status; errorDetail?: string };
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<Status>("idle");
+  const [state, setState] = useState<State>({ status: "idle" });
+  const { status } = state;
 
   // URLエラーパラメータ（リンク期限切れなど）
   const urlError =
@@ -19,14 +21,14 @@ export default function LoginPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
-    setStatus("pending");
+    setState({ status: "pending" });
 
     const normalized = email.trim().toLowerCase();
 
     // ① サーバー側で承認確認（service role で approved_emails を照合）
     const approved = await checkEmailApproved(normalized);
     if (!approved) {
-      setStatus("not_approved");
+      setState({ status: "not_approved" });
       return;
     }
 
@@ -39,7 +41,12 @@ export default function LoginPage() {
       },
     });
 
-    setStatus(error ? "error" : "sent");
+    if (error) {
+      console.error("signInWithOtp error:", error);
+      setState({ status: "error", errorDetail: error.message });
+    } else {
+      setState({ status: "sent" });
+    }
   }
 
   return (
@@ -134,7 +141,7 @@ export default function LoginPage() {
             </a>
             <div className="pt-1">
               <button
-                onClick={() => setStatus("idle")}
+                onClick={() => setState({ status: "idle" })}
                 className="text-[#6b7280] underline underline-offset-2"
               >
                 別のアドレスで試す
@@ -148,9 +155,14 @@ export default function LoginPage() {
           <div className="rounded-lg px-4 py-3 text-xs text-center text-[#991b1b]"
             style={{ backgroundColor: "#fef2f2", border: "1px solid #fecaca" }}>
             エラーが発生しました。しばらく経ってから再度お試しください。
+            {state.errorDetail && (
+              <p className="mt-1 font-mono text-[10px] break-all opacity-70">
+                {state.errorDetail}
+              </p>
+            )}
             <br />
             <button
-              onClick={() => setStatus("idle")}
+              onClick={() => setState({ status: "idle" })}
               className="mt-1 underline underline-offset-2"
             >
               再試行
