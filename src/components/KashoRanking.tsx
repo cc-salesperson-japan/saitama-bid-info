@@ -6,12 +6,14 @@ import type { KashoPoint } from "@/lib/data";
 type Mode = "count" | "amount";
 type Props = { data: KashoPoint[] };
 
-/** "埼玉県県土整備部" などの冗長なプレフィックスを除去 */
+/** 冗長なプレフィックスを除去。ただし「県土整備部　道路環境課」はそのまま残す */
 function cleanName(name: string): string {
-  return name
-    .replace(/^埼玉県県土整備部[\s　]*/u, "")
-    .replace(/^埼玉県[\s　]+/u, "")
-    .trim();
+  // まず "埼玉県" を除去
+  const s = name.replace(/^埼玉県[\s　]*/u, "").trim();
+  // "県土整備部 道路環境課" はそのまま残す（全角・半角スペース両対応）
+  if (/^県土整備部[\s　]*道路環境課$/u.test(s)) return s;
+  // それ以外は "県土整備部" も除去
+  return s.replace(/^県土整備部[\s　]*/u, "").trim();
 }
 
 export default function KashoRanking({ data }: Props) {

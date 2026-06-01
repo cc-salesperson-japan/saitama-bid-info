@@ -121,10 +121,10 @@ export default function Dashboard({ rawData }: Props) {
 
       <SummaryCards data={data.summary} />
 
-      <MonthlyChart data={data.monthly} years={chartYears} />
+      <MonthlyChart data={data.monthly} years={chartYears} issuerLabel={issuerLabel} />
 
       <div className="mb-4">
-        <FieldChart data={data.fields} />
+        <FieldChart data={data.fields} issuerLabel={issuerLabel} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

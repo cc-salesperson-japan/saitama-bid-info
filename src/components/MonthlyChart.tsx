@@ -20,16 +20,17 @@ const FY_COLORS: Record<number, string> = {
 type Props = {
   data: MonthlyPoint[];
   years: number[];
+  issuerLabel?: string;
 };
 
-export default function MonthlyChart({ data, years }: Props) {
+export default function MonthlyChart({ data, years, issuerLabel = "全機関" }: Props) {
   return (
     <div
       className="bg-white rounded-xl p-5 mb-4"
       style={{ border: "1px solid var(--border)" }}
     >
       <h2 className="text-sm font-semibold mb-4 text-[#1a1a1a]">
-        月別 開札件数
+        月別　開札件数（{issuerLabel}）
       </h2>
       <div className="flex gap-4 mb-3">
         {years.map((fy) => (

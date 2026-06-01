@@ -39,9 +39,9 @@ function getColor(name: string): string {
   return FIELD_COLORS[name] ?? "#94a3b8";
 }
 
-type Props = { data: FieldPoint[] };
+type Props = { data: FieldPoint[]; issuerLabel?: string };
 
-export default function FieldChart({ data }: Props) {
+export default function FieldChart({ data, issuerLabel = "全機関" }: Props) {
   const [mode, setMode] = useState<"count" | "amount">("count");
 
   const sorted = [...data].sort((a, b) =>
@@ -57,7 +57,9 @@ export default function FieldChart({ data }: Props) {
       style={{ border: "1px solid var(--border)" }}
     >
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-[#1a1a1a]">業種・分野別 発注件数・発注金額</h2>
+        <h2 className="text-sm font-semibold text-[#1a1a1a]">
+          業種分野別　発注件数・発注金額（{issuerLabel}）
+        </h2>
         <div className="flex gap-1">
           {(["count", "amount"] as const).map((m) => (
             <button
