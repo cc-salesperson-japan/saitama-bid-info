@@ -16,7 +16,7 @@ export default function MembersCTA() {
               メンバー限定
             </span>
             <span className="text-sm font-bold text-[#1a1a1a]">
-              参加業者分析ダッシュボード
+              埼玉県　参加業者分析ダッシュボード
             </span>
             <span className="text-xs text-[#6b7280]">招待制・無料</span>
           </div>
@@ -29,7 +29,7 @@ export default function MembersCTA() {
           className="shrink-0 inline-flex items-center justify-center gap-1 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
           style={{ backgroundColor: "#16a34a" }}
         >
-          メンバー登録を申し込む →
+          メンバー限定ページへ →
         </Link>
       </div>
     </div>
