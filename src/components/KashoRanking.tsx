@@ -6,7 +6,13 @@ import type { KashoPoint } from "@/lib/data";
 type Mode = "count" | "amount";
 type Props = { data: KashoPoint[] };
 
-const BAR_COLOR = "#2563eb";
+/** "埼玉県県土整備部" などの冗長なプレフィックスを除去 */
+function cleanName(name: string): string {
+  return name
+    .replace(/^埼玉県県土整備部[\s　]*/u, "")
+    .replace(/^埼玉県[\s　]+/u, "")
+    .trim();
+}
 
 export default function KashoRanking({ data }: Props) {
   const [mode, setMode] = useState<Mode>("count");
@@ -15,17 +21,20 @@ export default function KashoRanking({ data }: Props) {
     () =>
       [...data]
         .sort((a, b) => (mode === "count" ? b.count - a.count : b.amount - a.amount))
-        .slice(0, 15),
+        .slice(0, 15)
+        .map((d) => ({ ...d, displayName: cleanName(d.name) })),
     [data, mode]
   );
 
   if (data.length === 0) return null;
 
+  const unit = mode === "count" ? "件" : "万円";
+
   return (
     <div className="bg-white rounded-xl p-5" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <h2 className="text-sm font-semibold text-[#1a1a1a]">
-          県土整備事務所ランキング
+          県土整備事務所 発注件数・発注金額ランキング
         </h2>
         <div className="flex gap-1.5 shrink-0">
           {(
@@ -49,16 +58,33 @@ export default function KashoRanking({ data }: Props) {
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={sorted.length * 32 + 20}>
+      <ResponsiveContainer width="100%" height={sorted.length * 32 + 48}>
         <BarChart
           data={sorted}
           layout="vertical"
-          margin={{ top: 0, right: 60, left: 0, bottom: 0 }}
+          margin={{ top: 0, right: 60, left: 0, bottom: 24 }}
         >
-          <XAxis type="number" hide />
+          <XAxis
+            type="number"
+            tick={{ fontSize: 10, fill: "#9ca3af" }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v) =>
+              mode === "count"
+                ? `${v}`
+                : `${v.toLocaleString()}`
+            }
+            label={{
+              value: `（${unit}）`,
+              position: "insideBottomRight",
+              offset: 0,
+              fontSize: 10,
+              fill: "#9ca3af",
+            }}
+          />
           <YAxis
             type="category"
-            dataKey="name"
+            dataKey="displayName"
             width={170}
             tick={{ fontSize: 11, fill: "#4b5563" }}
           />
@@ -66,9 +92,10 @@ export default function KashoRanking({ data }: Props) {
             contentStyle={{ border: "1px solid #e8e0d4", borderRadius: 8, fontSize: 11 }}
             formatter={(v) =>
               mode === "count"
-                ? [`${Number(v).toLocaleString()}件`]
-                : [`${Number(v).toLocaleString()}万円`]
+                ? [`${Number(v).toLocaleString()}件`, "発注件数"]
+                : [`${Number(v).toLocaleString()}万円`, "発注金額"]
             }
+            labelFormatter={(label) => label}
           />
           <Bar dataKey={mode === "count" ? "count" : "amount"} radius={[0, 3, 3, 0]}>
             {sorted.map((_, i) => (
