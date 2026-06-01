@@ -25,6 +25,10 @@ export default function LoginPage() {
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("error")
       : null;
+  const urlDetail =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("detail")
+      : null;
 
   // ── ログイン送信 ──────────────────────────────────
   async function handleLogin(e: React.FormEvent) {
@@ -97,6 +101,11 @@ export default function LoginPage() {
           {urlError === "link_expired" && loginState.status === "idle" && (
             <div className="rounded-lg px-4 py-3 text-xs text-[#92400e] bg-[#fef3c7] border border-[#fde68a]">
               リンクの有効期限が切れています。再度入力してください。
+              {urlDetail && (
+                <p className="mt-1 font-mono text-[10px] break-all opacity-70">
+                  詳細: {urlDetail}
+                </p>
+              )}
             </div>
           )}
 
