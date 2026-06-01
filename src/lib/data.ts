@@ -54,6 +54,19 @@ export type CompanyPoint = {
   totalAmount: number; // 万円
 };
 
+export type KashoPoint = {
+  name: string;   // 課所名（県土整備事務所名）
+  count: number;
+  amount: number; // 万円
+};
+
+export type BigDealPoint = {
+  year: number;
+  ankenName: string;
+  kashoName: string;
+  plannedPrice: number; // 万円
+};
+
 export type DashboardData = {
   years: number[];
   summary: SummaryData;
@@ -64,6 +77,8 @@ export type DashboardData = {
   departments: DepartmentPoint[];
   winRateStats: WinRateStats;
   companies: CompanyPoint[];
+  kashoRanking: KashoPoint[];
+  bigDeals: BigDealPoint[];
 };
 
 // ─── 正規化済み生行データ型（クライアントサイド処理用）─────
@@ -72,8 +87,8 @@ export type RawRow = {
   source: "ken" | "city";
   year: number;
   date: string;
-  issuer: string;   // 発注部局 or 調達機関名
-  field: string;    // 分野分類
+  issuer: string;    // 発注部局 or 調達機関名
+  field: string;     // 分野分類
   amount: number | null;
   plannedPrice: number | null;
   winRate: number | null;
@@ -81,6 +96,8 @@ export type RawRow = {
   futeki: boolean;
   company: string | null;
   procMethod: string;
+  kashoName: string; // 課所名
+  ankenName: string; // 調達案件名称
 };
 
 export type RawDataResult = {
@@ -230,9 +247,9 @@ export async function fetchAllRawData(): Promise<RawDataResult> {
   };
 
   const citySelect =
-    "調達機関名,入札方式,開札日,年度,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率";
+    "調達機関名,入札方式,開札日,年度,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率,課所名,調達案件名称";
   const kenSelect =
-    "入札方式,開札日,年度,発注部局,発注方式,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率";
+    "入札方式,開札日,年度,発注部局,発注方式,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率,課所名,調達案件名称";
 
   const [cityRes, kenRes] = await Promise.all([
     fetchAll("city_rakusatsu", citySelect),
@@ -252,6 +269,8 @@ export async function fetchAllRawData(): Promise<RawDataResult> {
     futeki: r["不調"] === true || r["不調"] === "true",
     company: r["落札業者名"] as string | null,
     procMethod: normalizeProcurement((r["入札方式"] || "") as string),
+    kashoName: (r["課所名"] as string) || "",
+    ankenName: (r["調達案件名称"] as string) || "",
   }));
 
   const kenRows: RawRow[] = kenRes.map((r) => ({
@@ -269,6 +288,8 @@ export async function fetchAllRawData(): Promise<RawDataResult> {
     procMethod: normalizeProcurement(
       ((r["発注方式"] || r["入札方式"] || "") as string)
     ),
+    kashoName: (r["課所名"] as string) || "",
+    ankenName: (r["調達案件名称"] as string) || "",
   }));
 
   const rows = [...cityRows, ...kenRows];
@@ -453,6 +474,48 @@ export function computeDashboardData(rows: RawRow[]): DashboardData {
     .sort((a, b) => b.count - a.count)
     .slice(0, 50);
 
+  // ── 県土整備事務所ランキング ──
+  const kashoMap: Record<string, { count: number; amount: number }> = {};
+  rows
+    .filter((r) => r.source === "ken" && r.issuer === "県土整備部" && r.kashoName)
+    .forEach((r) => {
+      const k = r.kashoName;
+      if (!kashoMap[k]) kashoMap[k] = { count: 0, amount: 0 };
+      kashoMap[k].count++;
+      if (r.amount) kashoMap[k].amount += r.amount;
+    });
+  const kashoRanking: KashoPoint[] = Object.entries(kashoMap)
+    .map(([name, { count, amount }]) => ({
+      name,
+      count,
+      amount: Math.round(amount / 10000),
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  // ── 大型案件ランキング（年度ごと上位10件）──
+  const bigDealsRaw = rows
+    .filter(
+      (r) =>
+        r.source === "ken" &&
+        r.issuer === "県土整備部" &&
+        r.plannedPrice &&
+        r.ankenName
+    )
+    .map((r) => ({
+      year: r.year,
+      ankenName: r.ankenName,
+      kashoName: r.kashoName || "",
+      plannedPrice: Math.round(r.plannedPrice! / 10000),
+    }));
+  const bigDealsByYear: Record<number, typeof bigDealsRaw> = {};
+  bigDealsRaw.forEach((d) => {
+    if (!bigDealsByYear[d.year]) bigDealsByYear[d.year] = [];
+    bigDealsByYear[d.year].push(d);
+  });
+  const bigDeals: BigDealPoint[] = Object.values(bigDealsByYear).flatMap((arr) =>
+    arr.sort((a, b) => b.plannedPrice - a.plannedPrice).slice(0, 10)
+  );
+
   return {
     years,
     summary,
@@ -463,5 +526,7 @@ export function computeDashboardData(rows: RawRow[]): DashboardData {
     departments,
     winRateStats,
     companies,
+    kashoRanking,
+    bigDeals,
   };
 }

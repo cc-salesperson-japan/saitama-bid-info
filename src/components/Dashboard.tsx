@@ -11,6 +11,8 @@ import ProcurementChart from "./ProcurementChart";
 import DepartmentTable from "./DepartmentTable";
 import WinRateStatsCard from "./WinRateStats";
 import CompanyRanking from "./CompanyRanking";
+import KashoRanking from "./KashoRanking";
+import BigDealsChart from "./BigDealsChart";
 
 type Props = { rawData: RawDataResult };
 
@@ -132,6 +134,18 @@ export default function Dashboard({ rawData }: Props) {
       </div>
 
       <CompanyRanking data={data.companies} issuerLabel={issuerLabel} />
+
+      {/* 県土整備事務所ランキング + 大型案件 */}
+      {(data.kashoRanking.length > 0 || data.bigDeals.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          <div className="md:col-span-2">
+            <KashoRanking data={data.kashoRanking} />
+          </div>
+          <div>
+            <BigDealsChart data={data.bigDeals} availableYears={chartYears} />
+          </div>
+        </div>
+      )}
 
       {/* 自治体別案件数は一時停止（重要度低） */}
       {/* <div className="mt-4">
