@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { requestMagicLink } from "./actions";
+import { checkEmailApproved } from "./actions";
+import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type Status = "idle" | "pending" | "sent" | "not_approved" | "error";
 
@@ -19,8 +20,26 @@ export default function LoginPage() {
     e.preventDefault();
     if (!email.trim()) return;
     setStatus("pending");
-    const result = await requestMagicLink(email.trim());
-    setStatus(result.ok ? "sent" : result.reason);
+
+    const normalized = email.trim().toLowerCase();
+
+    // ① サーバー側で承認確認（service role で approved_emails を照合）
+    const approved = await checkEmailApproved(normalized);
+    if (!approved) {
+      setStatus("not_approved");
+      return;
+    }
+
+    // ② ブラウザ側クライアントでマジックリンク送信（PKCE が正しく機能する）
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalized,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    setStatus(error ? "error" : "sent");
   }
 
   return (
