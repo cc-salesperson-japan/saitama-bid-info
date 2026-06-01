@@ -1,179 +1,249 @@
 "use client";
 
 import { useState } from "react";
-import { checkEmailApproved } from "./actions";
+import { checkEmailApproved, submitAccessRequest } from "./actions";
 import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 
-type Status = "idle" | "pending" | "sent" | "not_approved" | "error";
-type State = { status: Status; errorDetail?: string };
+// ─── ログインフォームの状態 ──────────────────────────
+type LoginStatus = "idle" | "pending" | "sent" | "not_approved" | "error";
+type LoginState  = { status: LoginStatus; errorDetail?: string };
+
+// ─── 申込フォームの状態 ──────────────────────────────
+type ReqStatus = "idle" | "pending" | "submitted" | "already_approved" | "error";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [state, setState] = useState<State>({ status: "idle" });
-  const { status } = state;
+  // ログイン
+  const [loginEmail, setLoginEmail]   = useState("");
+  const [loginState, setLoginState]   = useState<LoginState>({ status: "idle" });
 
-  // URLエラーパラメータ（リンク期限切れなど）
+  // 申込
+  const [reqEmail,   setReqEmail]     = useState("");
+  const [reqCompany, setReqCompany]   = useState("");
+  const [reqStatus,  setReqStatus]    = useState<ReqStatus>("idle");
+
   const urlError =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("error")
       : null;
 
-  async function handleSubmit(e: React.FormEvent) {
+  // ── ログイン送信 ──────────────────────────────────
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) return;
-    setState({ status: "pending" });
+    if (!loginEmail.trim()) return;
+    setLoginState({ status: "pending" });
 
-    const normalized = email.trim().toLowerCase();
+    const normalized = loginEmail.trim().toLowerCase();
+    const approved   = await checkEmailApproved(normalized);
 
-    // ① サーバー側で承認確認（service role で approved_emails を照合）
-    const approved = await checkEmailApproved(normalized);
     if (!approved) {
-      setState({ status: "not_approved" });
+      setLoginState({ status: "not_approved" });
+      setReqEmail(normalized); // 申込フォームにメアドをコピー
       return;
     }
 
-    // ② ブラウザ側クライアントでマジックリンク送信（PKCE が正しく機能する）
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithOtp({
       email: normalized,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });
 
     if (error) {
-      console.error("signInWithOtp error:", error);
-      setState({ status: "error", errorDetail: error.message });
+      setLoginState({ status: "error", errorDetail: error.message });
     } else {
-      setState({ status: "sent" });
+      setLoginState({ status: "sent" });
+    }
+  }
+
+  // ── 申込送信 ──────────────────────────────────────
+  async function handleRequest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reqEmail.trim()) return;
+    setReqStatus("pending");
+
+    const result = await submitAccessRequest(reqEmail.trim(), reqCompany.trim());
+
+    if (result.ok) {
+      setReqStatus("submitted");
+    } else if (result.reason === "already_approved") {
+      setReqStatus("already_approved");
+      setLoginEmail(reqEmail.trim());
+    } else {
+      setReqStatus("error");
     }
   }
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center px-4"
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-10"
       style={{ backgroundColor: "var(--bg)" }}
     >
-      <div
-        className="w-full max-w-sm bg-white rounded-2xl p-8 space-y-6"
-        style={{ border: "1px solid var(--border)" }}
-      >
-        {/* ヘッダー */}
-        <div className="text-center space-y-1">
-          <p className="text-xs text-[#6b7280] font-medium tracking-wide uppercase">
-            Members Only
-          </p>
-          <h1 className="text-lg font-bold text-[#1a1a1a]">
-            会員限定エリア
-          </h1>
-          <p className="text-xs text-[#6b7280] leading-relaxed">
-            登録済みのメールアドレスを入力してください。
-            <br />
-            ログインリンクをお送りします。
-          </p>
-        </div>
+      <div className="w-full max-w-sm space-y-4">
 
-        {/* リンク期限切れエラー */}
-        {urlError === "link_expired" && status === "idle" && (
-          <div className="rounded-lg px-4 py-3 text-xs text-[#92400e] bg-[#fef3c7] border border-[#fde68a]">
-            リンクの有効期限が切れています。再度メールアドレスを入力してください。
-          </div>
-        )}
-
-        {/* フォーム */}
-        {status !== "sent" && (
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              disabled={status === "pending"}
-              className="w-full rounded-lg px-4 py-2.5 text-sm text-[#1a1a1a] outline-none transition-colors disabled:opacity-50"
-              style={{
-                border: "1px solid var(--border)",
-                backgroundColor: "#faf7f2",
-              }}
-            />
-            <button
-              type="submit"
-              disabled={status === "pending" || !email.trim()}
-              className="w-full rounded-lg py-2.5 text-sm font-medium text-white transition-opacity disabled:opacity-50"
-              style={{ backgroundColor: "#2563eb" }}
-            >
-              {status === "pending" ? "送信中…" : "ログインリンクを送信"}
-            </button>
-          </form>
-        )}
-
-        {/* 送信完了 */}
-        {status === "sent" && (
-          <div className="rounded-lg px-4 py-4 text-sm text-center space-y-2"
-            style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}>
-            <p className="text-lg">📬</p>
-            <p className="font-semibold text-[#166534]">メールを送信しました</p>
-            <p className="text-xs text-[#166534]">
-              受信トレイを確認し、ログインリンクをクリックしてください。
-              <br />
-              メールが届かない場合は迷惑メールフォルダもご確認ください。
+        {/* ── ログインカード ───────────────────────── */}
+        <div
+          className="bg-white rounded-2xl p-8 space-y-5"
+          style={{ border: "1px solid var(--border)" }}
+        >
+          <div className="text-center space-y-1">
+            <p className="text-xs text-[#6b7280] font-medium tracking-wide uppercase">
+              Members Only
+            </p>
+            <h1 className="text-lg font-bold text-[#1a1a1a]">ログイン</h1>
+            <p className="text-xs text-[#6b7280]">
+              登録済みのメールアドレスを入力してください
             </p>
           </div>
-        )}
 
-        {/* 未承認 */}
-        {status === "not_approved" && (
-          <div className="rounded-lg px-4 py-4 text-xs text-center space-y-2"
-            style={{ backgroundColor: "#fff7ed", border: "1px solid #fed7aa" }}>
-            <p className="font-semibold text-[#9a3412]">
-              このメールアドレスは登録されていません
-            </p>
-            <p className="text-[#9a3412] leading-relaxed">
-              アクセスをご希望の方は X（Twitter）の DM にてお申し込みください。
-            </p>
-            <a
-              href="https://x.com/cc_salesperson"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block mt-1 font-medium underline underline-offset-2 text-[#9a3412]"
-            >
-              @cc_salesperson にDM →
-            </a>
-            <div className="pt-1">
+          {urlError === "link_expired" && loginState.status === "idle" && (
+            <div className="rounded-lg px-4 py-3 text-xs text-[#92400e] bg-[#fef3c7] border border-[#fde68a]">
+              リンクの有効期限が切れています。再度入力してください。
+            </div>
+          )}
+
+          {loginState.status !== "sent" && (
+            <form onSubmit={handleLogin} className="space-y-3">
+              <input
+                type="email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+                disabled={loginState.status === "pending"}
+                className="w-full rounded-lg px-4 py-2.5 text-sm text-[#1a1a1a] outline-none disabled:opacity-50"
+                style={{ border: "1px solid var(--border)", backgroundColor: "#faf7f2" }}
+              />
               <button
-                onClick={() => setState({ status: "idle" })}
-                className="text-[#6b7280] underline underline-offset-2"
+                type="submit"
+                disabled={loginState.status === "pending" || !loginEmail.trim()}
+                className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50 cursor-pointer"
+                style={{ backgroundColor: "#2563eb" }}
               >
-                別のアドレスで試す
+                {loginState.status === "pending" ? "確認中…" : "ログインリンクを送信"}
+              </button>
+            </form>
+          )}
+
+          {loginState.status === "sent" && (
+            <div className="rounded-lg px-4 py-4 text-sm text-center space-y-2"
+              style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}>
+              <p className="text-lg">📬</p>
+              <p className="font-semibold text-[#166534]">メールを送信しました</p>
+              <p className="text-xs text-[#166534]">
+                受信トレイを確認し、ログインリンクをクリックしてください。
+                <br />届かない場合は迷惑メールフォルダもご確認ください。
+              </p>
+            </div>
+          )}
+
+          {loginState.status === "not_approved" && (
+            <div className="rounded-lg px-4 py-3 text-xs text-[#92400e] bg-[#fff7ed] border border-[#fed7aa]">
+              このメールアドレスは未登録です。下の申込フォームからリクエストしてください。
+            </div>
+          )}
+
+          {loginState.status === "error" && (
+            <div className="rounded-lg px-4 py-3 text-xs text-center text-[#991b1b]"
+              style={{ backgroundColor: "#fef2f2", border: "1px solid #fecaca" }}>
+              エラーが発生しました。
+              {loginState.errorDetail && (
+                <p className="mt-1 font-mono text-[10px] break-all opacity-70">
+                  {loginState.errorDetail}
+                </p>
+              )}
+              <br />
+              <button onClick={() => setLoginState({ status: "idle" })}
+                className="mt-1 underline underline-offset-2 cursor-pointer">
+                再試行
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* エラー */}
-        {status === "error" && (
-          <div className="rounded-lg px-4 py-3 text-xs text-center text-[#991b1b]"
-            style={{ backgroundColor: "#fef2f2", border: "1px solid #fecaca" }}>
-            エラーが発生しました。しばらく経ってから再度お試しください。
-            {state.errorDetail && (
-              <p className="mt-1 font-mono text-[10px] break-all opacity-70">
-                {state.errorDetail}
+        {/* ── 申込カード ───────────────────────────── */}
+        <div
+          className="bg-white rounded-2xl p-8 space-y-5"
+          style={{ border: "1px solid var(--border)" }}
+        >
+          <div className="text-center space-y-1">
+            <p className="text-xs font-medium text-[#2563eb] tracking-wide uppercase">
+              New
+            </p>
+            <h2 className="text-base font-bold text-[#1a1a1a]">アクセスを申し込む</h2>
+            <p className="text-xs text-[#6b7280] leading-relaxed">
+              招待制・無料。審査後にメールにてご連絡します。
+              <br />
+              X（
+              <a href="https://x.com/cc_salesperson" target="_blank" rel="noopener noreferrer"
+                className="underline underline-offset-2">@cc_salesperson
+              </a>
+              ）のDMからも受け付けています。
+            </p>
+          </div>
+
+          {reqStatus !== "submitted" && (
+            <form onSubmit={handleRequest} className="space-y-3">
+              <input
+                type="email"
+                value={reqEmail}
+                onChange={(e) => setReqEmail(e.target.value)}
+                placeholder="your@email.com（必須）"
+                required
+                disabled={reqStatus === "pending"}
+                className="w-full rounded-lg px-4 py-2.5 text-sm text-[#1a1a1a] outline-none disabled:opacity-50"
+                style={{ border: "1px solid var(--border)", backgroundColor: "#faf7f2" }}
+              />
+              <input
+                type="text"
+                value={reqCompany}
+                onChange={(e) => setReqCompany(e.target.value)}
+                placeholder="会社名・組織名（任意）"
+                disabled={reqStatus === "pending"}
+                className="w-full rounded-lg px-4 py-2.5 text-sm text-[#1a1a1a] outline-none disabled:opacity-50"
+                style={{ border: "1px solid var(--border)", backgroundColor: "#faf7f2" }}
+              />
+              <button
+                type="submit"
+                disabled={reqStatus === "pending" || !reqEmail.trim()}
+                className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50 cursor-pointer"
+                style={{ backgroundColor: "#1a1a1a" }}
+              >
+                {reqStatus === "pending" ? "送信中…" : "アクセスを申し込む"}
+              </button>
+            </form>
+          )}
+
+          {reqStatus === "submitted" && (
+            <div className="rounded-lg px-4 py-4 text-sm text-center space-y-2"
+              style={{ backgroundColor: "#f0f7ff", border: "1px solid #bfdbfe" }}>
+              <p className="text-lg">✅</p>
+              <p className="font-semibold text-[#1e40af]">申込を受け付けました</p>
+              <p className="text-xs text-[#1e40af] leading-relaxed">
+                審査後にご登録のメールアドレスへご連絡します。
+                <br />お気軽に X の DM でもお声がけください。
               </p>
-            )}
-            <br />
-            <button
-              onClick={() => setState({ status: "idle" })}
-              className="mt-1 underline underline-offset-2"
-            >
-              再試行
-            </button>
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* フッター */}
-        <p className="text-center text-[10px] text-[#9ca3af]">
-          Powered by AnkenGet
-        </p>
+          {reqStatus === "already_approved" && (
+            <div className="rounded-lg px-4 py-3 text-xs text-[#166534] bg-[#f0fdf4] border border-[#bbf7d0]">
+              このメールアドレスはすでに登録済みです。上のフォームからログインしてください。
+            </div>
+          )}
+
+          {reqStatus === "error" && (
+            <div className="rounded-lg px-4 py-3 text-xs text-center text-[#991b1b]"
+              style={{ backgroundColor: "#fef2f2", border: "1px solid #fecaca" }}>
+              エラーが発生しました。しばらく経ってから再度お試しください。
+              <br />
+              <button onClick={() => setReqStatus("idle")}
+                className="mt-1 underline underline-offset-2 cursor-pointer">
+                再試行
+              </button>
+            </div>
+          )}
+        </div>
+
+        <p className="text-center text-[10px] text-[#9ca3af]">Powered by AnkenGet</p>
       </div>
     </div>
   );

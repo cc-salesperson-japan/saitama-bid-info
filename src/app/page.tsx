@@ -1,5 +1,6 @@
 import { fetchAllRawData } from "@/lib/data";
 import Dashboard from "@/components/Dashboard";
+import MembersCTA from "@/components/MembersCTA";
 import TermsDisclaimer from "@/components/TermsDisclaimer";
 
 // 1時間ごとにデータを再取得（ISR）
@@ -44,6 +45,9 @@ export default async function Page() {
 
       {/* ダッシュボード（クライアントサイドフィルタリング） */}
       <Dashboard rawData={rawData} />
+
+      {/* 会員限定エリア入口 */}
+      <MembersCTA />
 
       {/* 利用規約・免責事項 */}
       <TermsDisclaimer />
