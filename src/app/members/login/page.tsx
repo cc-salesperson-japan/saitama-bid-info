@@ -85,8 +85,8 @@ export default function LoginPage() {
           style={{ border: "1px solid var(--border)" }}
         >
           <div className="text-center space-y-1">
-            <p className="text-xs text-[#6b7280] font-medium tracking-wide uppercase">
-              Members Only
+            <p className="text-xs font-medium tracking-wide uppercase" style={{ color: "#16a34a" }}>
+              メンバー限定
             </p>
             <h1 className="text-lg font-bold text-[#1a1a1a]">ログイン</h1>
             <p className="text-xs text-[#6b7280]">
@@ -165,10 +165,10 @@ export default function LoginPage() {
           style={{ border: "1px solid var(--border)" }}
         >
           <div className="text-center space-y-1">
-            <p className="text-xs font-medium text-[#2563eb] tracking-wide uppercase">
+            <p className="text-xs font-medium tracking-wide uppercase" style={{ color: "#16a34a" }}>
               New
             </p>
-            <h2 className="text-base font-bold text-[#1a1a1a]">アクセスを申し込む</h2>
+            <h2 className="text-base font-bold text-[#1a1a1a]">メンバー登録を申し込む</h2>
             <p className="text-xs text-[#6b7280] leading-relaxed">
               招待制・無料。審査後にメールにてご連絡します。
               <br />
@@ -205,9 +205,9 @@ export default function LoginPage() {
                 type="submit"
                 disabled={reqStatus === "pending" || !reqEmail.trim()}
                 className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50 cursor-pointer"
-                style={{ backgroundColor: "#1a1a1a" }}
+                style={{ backgroundColor: "#16a34a" }}
               >
-                {reqStatus === "pending" ? "送信中…" : "アクセスを申し込む"}
+                {reqStatus === "pending" ? "送信中…" : "メンバー登録を申し込む"}
               </button>
             </form>
           )}
