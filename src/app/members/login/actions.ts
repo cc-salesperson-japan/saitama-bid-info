@@ -10,8 +10,7 @@ function adminClient() {
 }
 
 /**
- * approved_emails テーブルに登録済みか確認するだけ。
- * マジックリンクの送信はブラウザ側 Supabase クライアントで行う（PKCE のため）。
+ * approved_emails テーブルに登録済みか確認するだけ（申込フォーム用）。
  */
 export async function checkEmailApproved(email: string): Promise<boolean> {
   const { data } = await adminClient()
@@ -20,6 +19,37 @@ export async function checkEmailApproved(email: string): Promise<boolean> {
     .eq("email", email.toLowerCase().trim())
     .maybeSingle();
   return !!data;
+}
+
+/**
+ * 承認確認 + 6桁OTPコードをメール送信。
+ * マジックリンクではなくコード方式 → Gmailのリンクスキャン問題を回避。
+ */
+export async function sendEmailOtp(
+  email: string
+): Promise<{ ok: boolean; reason?: "not_approved" | "error" }> {
+  const normalized = email.toLowerCase().trim();
+  const admin = adminClient();
+
+  const { data } = await admin
+    .from("approved_emails")
+    .select("email")
+    .eq("email", normalized)
+    .maybeSingle();
+
+  if (!data) return { ok: false, reason: "not_approved" };
+
+  const { error } = await admin.auth.signInWithOtp({
+    email: normalized,
+    options: { shouldCreateUser: true },
+    // emailRedirectTo を省略 → コードのみ送信（リンクなし）
+  });
+
+  if (error) {
+    console.error("sendEmailOtp error:", error.message);
+    return { ok: false, reason: "error" };
+  }
+  return { ok: true };
 }
 
 /**
