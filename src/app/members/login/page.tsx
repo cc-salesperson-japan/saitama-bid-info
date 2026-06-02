@@ -181,7 +181,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="submit"
-                  disabled={loginStatus === "pending" || otpCode.length < 6}
+                  disabled={loginStatus === "pending" || otpCode.trim().length === 0}
                   className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50 cursor-pointer"
                   style={{ backgroundColor: "#2563eb" }}
                 >
