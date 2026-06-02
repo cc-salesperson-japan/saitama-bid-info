@@ -30,7 +30,7 @@ export default function CompanyActivity() {
 
   return (
     <div className="bg-white rounded-xl p-5" style={{ border: "1px solid var(--border)" }}>
-      <h2 className="text-sm font-semibold mb-1 text-[#1a1a1a]">⑦ 業者の活動分布</h2>
+      <h2 className="text-sm font-semibold mb-1 text-[#1a1a1a]">業者の活動分布</h2>
       <p className="text-xs text-[#6b7280] mb-4">業者名を検索して、どの機関に何件参加しているかを確認</p>
 
       <div className="relative mb-4">

@@ -211,7 +211,8 @@ export default function MembersDashboard({ data }: Props) {
           ))}
         </div>
         <span className="text-xs text-[#9ca3af] ml-auto shrink-0">
-          {filteredSanka.length.toLocaleString()}件 / {sankaRows.length.toLocaleString()}件
+          延べ参加 {filteredSanka.length.toLocaleString()}件
+          {year !== "all" && ` / 全期間 ${sankaRows.length.toLocaleString()}件`}
         </span>
       </div>
 

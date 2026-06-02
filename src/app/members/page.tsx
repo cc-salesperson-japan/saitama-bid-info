@@ -29,7 +29,11 @@ export default async function MembersPage() {
               埼玉県　参加業者分析ダッシュボード
             </h1>
           </div>
-          <p className="text-xs text-[#6b7280]">{user.email} でログイン中</p>
+          <p className="text-xs text-[#6b7280] leading-relaxed">
+            埼玉県の入札案件に参加した業者のリストを使ったデータ・グラフを閲覧できるページです。<br />
+            件数表示の分母（46,004件）は2024〜2026年度の全案件における延べ参加業者数です。
+          </p>
+          <p className="text-[10px] text-[#9ca3af] mt-1">{user.email} でログイン中</p>
         </div>
         <div className="flex items-center gap-3">
           <a
