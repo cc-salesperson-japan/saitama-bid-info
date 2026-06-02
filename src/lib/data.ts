@@ -65,6 +65,7 @@ export type BigDealPoint = {
   ankenName: string;
   kashoName: string;
   plannedPrice: number; // 万円
+  winner: string | null; // 落札業者名
 };
 
 export type DashboardData = {
@@ -506,6 +507,7 @@ export function computeDashboardData(rows: RawRow[]): DashboardData {
       ankenName: r.ankenName,
       kashoName: r.kashoName || "",
       plannedPrice: Math.round(r.plannedPrice! / 10000),
+      winner: r.company || null,
     }));
   const bigDealsByYear: Record<number, typeof bigDealsRaw> = {};
   bigDealsRaw.forEach((d) => {

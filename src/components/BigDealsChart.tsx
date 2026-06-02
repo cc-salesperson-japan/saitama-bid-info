@@ -62,6 +62,11 @@ export default function BigDealsChart({ data, availableYears }: Props) {
               <div className="flex-1 min-w-0">
                 <p className="text-[#1a1a1a] leading-relaxed line-clamp-2">{d.ankenName}</p>
                 <p className="text-[#9ca3af] text-[10px] mt-0.5 truncate">{d.kashoName}</p>
+                {d.winner && (
+                  <p className="text-[#6b7280] text-[10px] mt-0.5 truncate">
+                    落札：{d.winner}
+                  </p>
+                )}
               </div>
               <span className="font-semibold text-[#2563eb] shrink-0 whitespace-nowrap">
                 {d.plannedPrice.toLocaleString()}万
