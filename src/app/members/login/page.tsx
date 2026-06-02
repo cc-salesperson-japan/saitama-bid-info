@@ -114,7 +114,7 @@ export default function LoginPage() {
             <>
               <p className="text-xs text-[#6b7280] text-center">
                 登録済みのメールアドレスを入力してください。
-                <br />6桁の確認コードをお送りします。
+                <br />8桁の確認コードをお送りします。
               </p>
 
               <form onSubmit={handleSendOtp} className="space-y-3">
@@ -164,24 +164,24 @@ export default function LoginPage() {
               <div className="rounded-lg px-4 py-3 text-xs text-center text-[#166534]"
                 style={{ backgroundColor: "#f0fdf4", border: "1px solid #bbf7d0" }}>
                 <p className="font-semibold mb-1">📬 コードを送信しました</p>
-                <p>{loginEmail} に届いた6桁のコードを入力してください</p>
+                <p>{loginEmail} に届いた8桁のコードを入力してください</p>
               </div>
 
               <form onSubmit={handleVerifyCode} className="space-y-3">
                 <input
                   type="text"
                   value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="123456"
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                  placeholder="12345678"
                   inputMode="numeric"
-                  maxLength={6}
+                  maxLength={8}
                   disabled={loginStatus === "pending"}
                   className="w-full rounded-lg px-4 py-3 text-2xl text-center font-mono tracking-widest text-[#1a1a1a] outline-none disabled:opacity-50"
                   style={{ border: "1px solid var(--border)", backgroundColor: "#faf7f2" }}
                 />
                 <button
                   type="submit"
-                  disabled={loginStatus === "pending" || otpCode.length !== 6}
+                  disabled={loginStatus === "pending" || otpCode.length < 6}
                   className="w-full rounded-lg py-2.5 text-sm font-medium text-white disabled:opacity-50 cursor-pointer"
                   style={{ backgroundColor: "#2563eb" }}
                 >
