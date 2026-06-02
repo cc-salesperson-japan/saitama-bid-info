@@ -50,7 +50,7 @@ export default function LoginPage() {
   // ── ステップ2: 6桁コード入力 → 認証 ───────────────
   async function handleVerifyCode(e: React.FormEvent) {
     e.preventDefault();
-    if (otpCode.length !== 6) return;
+    if (otpCode.trim().length === 0) return;
     setLoginStatus("pending");
     setLoginError("");
 
