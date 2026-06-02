@@ -23,10 +23,10 @@ export default async function MembersPage() {
               className="text-xs font-semibold px-2 py-0.5 rounded-full text-white"
               style={{ backgroundColor: "#2563eb" }}
             >
-              Members
+              メンバー限定
             </span>
             <h1 className="text-lg font-bold text-[#1a1a1a]">
-              参加業者分析ダッシュボード
+              埼玉県　参加業者分析ダッシュボード
             </h1>
           </div>
           <p className="text-xs text-[#6b7280]">{user.email} でログイン中</p>
@@ -42,7 +42,7 @@ export default async function MembersPage() {
         </div>
       </div>
 
-      {/* ①〜⑨ ダッシュボード */}
+      {/* ダッシュボード */}
       <MembersDashboard data={membersData} />
 
       <p className="text-xs text-center text-[#9ca3af] mt-8 pb-4">

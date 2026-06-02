@@ -1,16 +1,18 @@
-import type { ParticipationPoint } from "@/lib/sanka-data";
+import { YearFilter } from "./MembersDashboard";
 
-type Props = { data: ParticipationPoint[] };
+type Point = { company: string; cnt: number };
+type Props = { data: Point[]; years: number[]; year: string; onYearChange: (y: string) => void };
 
-export default function ParticipationRanking({ data }: Props) {
+export default function ParticipationRanking({ data, years, year, onYearChange }: Props) {
   const left  = data.slice(0, 15);
   const right = data.slice(15, 30);
   const max   = data[0]?.cnt ?? 1;
 
   return (
     <div className="bg-white rounded-xl p-5" style={{ border: "1px solid var(--border)" }}>
-      <h2 className="text-sm font-semibold mb-1 text-[#1a1a1a]">① 参加件数ランキング</h2>
-      <p className="text-xs text-[#6b7280] mb-4">落札ではなく「入札に参加した回数」のランキング</p>
+      <h2 className="text-sm font-semibold mb-1 text-[#1a1a1a]">参加件数ランキング</h2>
+      <p className="text-xs text-[#6b7280] mb-3">入札に参加した回数のランキング</p>
+      <YearFilter years={years} selected={year} onChange={onYearChange} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
         {[left, right].map((col, ci) => (
           <div key={ci} className="space-y-1">

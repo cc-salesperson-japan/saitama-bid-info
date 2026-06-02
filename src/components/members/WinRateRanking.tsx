@@ -1,19 +1,21 @@
 "use client";
 import { useState } from "react";
-import type { WinRatePoint } from "@/lib/sanka-data";
+import { YearFilter } from "./MembersDashboard";
 
-type Props = { dataAll: WinRatePoint[]; dataQuality: WinRatePoint[] };
+type Point = { company: string; participations: number; wins: number; win_rate: number };
+type Props = {
+  dataAll: Point[]; dataQuality: Point[];
+  years: number[]; year: string; onYearChange: (y: string) => void;
+};
 
-export default function WinRateRanking({ dataAll, dataQuality }: Props) {
+export default function WinRateRanking({ dataAll, dataQuality, years, year, onYearChange }: Props) {
   const [mode, setMode] = useState<"all" | "quality">("quality");
   const data = mode === "all" ? dataAll : dataQuality;
-  const left  = data.slice(0, 15);
-  const right = data.slice(15, 30);
 
   return (
     <div className="bg-white rounded-xl p-5" style={{ border: "1px solid var(--border)" }}>
       <div className="flex items-center justify-between mb-1 gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold text-[#1a1a1a]">③/⑤ 勝率ランキング</h2>
+        <h2 className="text-sm font-semibold text-[#1a1a1a]">勝率ランキング</h2>
         <div className="flex gap-1.5">
           {([
             { k: "quality", label: "10件以上参加" },
@@ -33,9 +35,11 @@ export default function WinRateRanking({ dataAll, dataQuality }: Props) {
           ))}
         </div>
       </div>
-      <p className="text-xs text-[#6b7280] mb-4">
-        {mode === "quality" ? "参加10件以上の業者に絞った精度の高い勝率" : "参加件数1件以上の全業者の勝率"}
+      <p className="text-xs text-[#6b7280] mb-3">
+        落札件数 ÷ 参加件数 ＝ 勝率。
+        {mode === "quality" ? "参加10件以上の業者のみ表示（精度重視）" : "参加1件以上の全業者"}
       </p>
+      <YearFilter years={years} selected={year} onChange={onYearChange} />
 
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
@@ -55,7 +59,10 @@ export default function WinRateRanking({ dataAll, dataQuality }: Props) {
                 <td className="py-1 text-[#1a1a1a] truncate max-w-[200px]">{d.company}</td>
                 <td className="py-1 text-right text-[#6b7280]">{d.participations}</td>
                 <td className="py-1 text-right text-[#6b7280]">{d.wins}</td>
-                <td className="py-1 text-right font-semibold" style={{ color: d.win_rate >= 50 ? "#166534" : d.win_rate >= 20 ? "#1d4ed8" : "#6b7280" }}>
+                <td
+                  className="py-1 text-right font-semibold"
+                  style={{ color: d.win_rate >= 50 ? "#166534" : d.win_rate >= 20 ? "#1d4ed8" : "#6b7280" }}
+                >
                   {d.win_rate}%
                 </td>
               </tr>
