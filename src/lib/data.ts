@@ -6,7 +6,6 @@ export type SummaryData = {
   totalCases: number;
   totalAmount: number;   // 万円
   avgAmount: number;     // 万円
-  futekiCount: number;
   avgWinRate: number | null;    // %
   avgSurveyRate: number | null; // %
 };
@@ -238,6 +237,7 @@ export async function fetchAllRawData(): Promise<RawDataResult> {
       const { data, error } = await supabase
         .from(table)
         .select(select)
+        .not("不調", "is", true)   // 取止め・不落案件を除外
         .range(from, from + PAGE - 1);
       if (error || !data?.length) break;
       all.push(...(data as unknown as DbRow[]));
@@ -348,7 +348,6 @@ export function computeDashboardData(rows: RawRow[]): DashboardData {
     avgAmount: amounts.length
       ? Math.round(totalAmount / amounts.length / 10000)
       : 0,
-    futekiCount: rows.filter((r) => r.futeki).length,
     avgWinRate: pct(avg(winRates)),
     avgSurveyRate: pct(avg(surveyRates)),
   };

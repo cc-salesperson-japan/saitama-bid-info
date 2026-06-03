@@ -51,12 +51,6 @@ export default function SummaryCards({ data }: Props) {
       color: "#1a1a1a",
     },
     {
-      label: "不調件数",
-      value: fmt(data.futekiCount),
-      unit: "件",
-      color: "#f97316",
-    },
-    {
       label: "平均落札率",
       value: data.avgWinRate != null ? data.avgWinRate.toFixed(1) : "—",
       unit: "%",
@@ -73,7 +67,7 @@ export default function SummaryCards({ data }: Props) {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
       {cards.map((c) => (
         <div
           key={c.label}
