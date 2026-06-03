@@ -5,7 +5,7 @@ export default function TermsDisclaimer() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="mt-8 border-t border-[#e0dbd0] pt-6">
+    <div className="mt-4">
       {/* 開閉ボタン */}
       <button
         onClick={() => setOpen((v) => !v)}
