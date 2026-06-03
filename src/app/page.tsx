@@ -46,11 +46,11 @@ export default async function Page() {
       {/* ダッシュボード（クライアントサイドフィルタリング） */}
       <Dashboard rawData={rawData} />
 
+      {/* 会員限定エリア入口 */}
+      <MembersCTA />
+
       {/* 利用規約・免責事項 */}
       <TermsDisclaimer />
-
-      {/* 会員限定エリア入口（免責事項ボーダーの下） */}
-      <MembersCTA />
 
       {/* フッター */}
       <p className="text-xs text-center text-[#6b7280] mt-4 pb-4">
