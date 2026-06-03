@@ -14,7 +14,9 @@ const METHOD_COLORS: Record<string, string> = {
 type Props = { data: ProcurementPoint[]; issuerLabel?: string };
 
 export default function ProcurementChart({ data, issuerLabel = "全機関" }: Props) {
-  const total = data.reduce((s, d) => s + d.count, 0);
+  // 多い順にソート（上部頂点から右回りで大きいスライスが来る）
+  const sorted = [...data].sort((a, b) => b.count - a.count);
+  const total  = sorted.reduce((s, d) => s + d.count, 0);
 
   return (
     <div
@@ -38,7 +40,7 @@ export default function ProcurementChart({ data, issuerLabel = "全機関" }: Pr
         <>
           {/* 凡例 */}
           <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
-            {data.map((d) => (
+            {sorted.map((d) => (
               <div key={d.method} className="flex items-center gap-1">
                 <div
                   className="w-2.5 h-2.5 rounded-sm flex-shrink-0"
@@ -52,18 +54,20 @@ export default function ProcurementChart({ data, issuerLabel = "全機関" }: Pr
             ))}
           </div>
 
-          {/* ドーナツ */}
+          {/* ドーナツ：上部頂点から右回り・多い順 */}
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie
-                data={data}
+                data={sorted}
                 dataKey="count"
                 nameKey="method"
                 innerRadius={60}
                 outerRadius={90}
                 paddingAngle={2}
+                startAngle={90}
+                endAngle={-270}
               >
-                {data.map((d) => (
+                {sorted.map((d) => (
                   <Cell
                     key={d.method}
                     fill={METHOD_COLORS[d.method] ?? "#94a3b8"}
@@ -83,7 +87,7 @@ export default function ProcurementChart({ data, issuerLabel = "全機関" }: Pr
 
           {/* 件数テーブル */}
           <div className="mt-2 space-y-1">
-            {data.map((d) => (
+            {sorted.map((d) => (
               <div
                 key={d.method}
                 className="flex justify-between text-xs py-0.5"
