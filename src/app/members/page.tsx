@@ -15,7 +15,7 @@ export default async function MembersPage() {
   const membersData = await fetchMembersData();
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6" style={{ minHeight: "100vh" }}>
+    <div className="max-w-6xl mx-auto px-4 py-6" style={{ minHeight: "100vh" }}>
       {/* ヘッダー */}
       <div className="flex items-start justify-between mb-6 gap-4 flex-wrap">
         <div>
