@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { fetchMembersData } from "@/lib/sanka-data";
 import MembersDashboard from "@/components/members/MembersDashboard";
+import TermsDisclaimer from "@/components/TermsDisclaimer";
 import LogoutButton from "./LogoutButton";
 
 export const dynamic = "force-dynamic";
@@ -49,8 +50,13 @@ export default async function MembersPage() {
       {/* ダッシュボード */}
       <MembersDashboard data={membersData} />
 
-      <p className="text-xs text-center text-[#9ca3af] mt-8 pb-4">
-        Powered by AnkenGet｜参加業者データ：46,004件
+      {/* 免責事項・利用規約（無料ページと同じ） */}
+      <div className="mt-8 border-t border-[#e0dbd0] pt-6">
+        <TermsDisclaimer />
+      </div>
+
+      <p className="text-xs text-center text-[#9ca3af] mt-4 pb-4">
+        Powered by AnkenGet
       </p>
     </div>
   );

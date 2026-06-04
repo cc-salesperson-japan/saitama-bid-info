@@ -165,10 +165,9 @@ export default function MembersDashboard({ data }: Props) {
       <CompetitionDensity   data={density} />
       <CompetitionMatrix    data={compMatrix} />
       <CompanyActivity />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <NewEntrantTracker data={newEntrants} maxYear={Math.max(...availableYears)} />
-        <ShimeiEstimator   data={shimei} />
-      </div>
+      {/* 新規参入トラッカーは精度改善まで非表示 */}
+      {/* <NewEntrantTracker data={newEntrants} maxYear={Math.max(...availableYears)} /> */}
+      <ShimeiEstimator data={shimei} />
     </div>
   );
 }
