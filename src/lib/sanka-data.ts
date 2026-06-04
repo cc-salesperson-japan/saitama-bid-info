@@ -2,13 +2,14 @@ import { createSupabaseServerClient } from "./supabase-server";
 
 // ─── 型定義 ──────────────────────────────────────────────────
 
-/** 年度・分野を付与済みの参加業者行 */
+/** 年度・分野・issuerを付与済みの参加業者行 */
 export type AnnotatedSankaRow = {
   anken_no:   string;
-  kikan_name: string;
+  kikan_name: string;  // "埼玉県" or 市区町村名
   company:    string;
   year:       number | null;
   field:      string | null;
+  issuer:     string;  // 無料ページと同じ粒度: 県土整備部/下水道局…/市区町村名
 };
 
 /** 勝率計算用（落札業者・年度） */
@@ -63,8 +64,9 @@ export async function fetchMembersData(): Promise<MembersRawData> {
   // city_rakusatsu には案件番号がないため (調達機関名+調達案件名称) でJOIN
   const [sankaRaw, kenMetaRaw, cityMetaRaw] = await Promise.all([
     fetchAll<{
-      anken_no: string; anken_name: string; kikan_name: string; company: string;
-    }>(supabase, "sanka_gyosha", "anken_no,anken_name,kikan_name,company"),
+      anken_no: string; anken_name: string; kikan_name: string;
+      company: string; kasho_name: string;
+    }>(supabase, "sanka_gyosha", "anken_no,anken_name,kikan_name,company,kasho_name"),
 
     fetchAll<{
       "案件番号": string; "年度": number; "分野分類": string | null;
@@ -92,17 +94,31 @@ export async function fetchMembersData(): Promise<MembersRawData> {
     cityMap.set(key, { year: r["年度"], field: r["分野分類"] });
   }
 
-  // ── sanka 行に year / field を付与 ───────────────────────────
+  // ── 埼玉県の部局を kasho_name から抽出するヘルパー ─────────────
+  const KEN_DEPTS = ["県土整備部", "下水道局", "企業局", "農林部", "都市整備部"];
+  function extractDept(kasho: string): string {
+    for (const d of KEN_DEPTS) {
+      if (kasho.includes(d)) return d;
+    }
+    return "その他部局";
+  }
+
+  // ── sanka 行に year / field / issuer を付与 ─────────────────
   const sankaRows: AnnotatedSankaRow[] = sankaRaw.map((r) => {
+    // issuer: 埼玉県 → kasho_name から部局名を抽出、自治体 → kikan_name
+    const issuer = r.kikan_name === "埼玉県"
+      ? extractDept(r.kasho_name ?? "")
+      : r.kikan_name;
+
     // まず ken JOIN（anken_no一致）
     const ken = kenMap.get(r.anken_no);
-    if (ken) return { ...r, year: ken.year, field: ken.field };
+    if (ken) return { ...r, issuer, year: ken.year, field: ken.field };
 
     // 次に city JOIN（kikan_name + anken_name 一致）
     const city = cityMap.get(`${r.kikan_name}||${r.anken_name}`);
-    if (city) return { ...r, year: city.year, field: city.field };
+    if (city) return { ...r, issuer, year: city.year, field: city.field };
 
-    return { ...r, year: null, field: null };
+    return { ...r, issuer, year: null, field: null };
   });
 
   // ── 落札業者データ（勝率計算用）────────────────────────────
