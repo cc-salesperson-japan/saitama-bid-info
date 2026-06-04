@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export default function MembersCTA() {
   return (
     <div
@@ -24,13 +22,14 @@ export default function MembersCTA() {
             メンバー限定公開の機能：各自治体の指名業者リスト推定、業者×自治体ヒートマップ、など全9機能
           </p>
         </div>
-        <Link
+        {/* Link → <a> に変更（"use client" Dashboard との干渉を回避） */}
+        <a
           href="/members/login"
           className="shrink-0 inline-flex items-center justify-center gap-1 px-5 py-2.5 rounded-lg text-sm font-medium text-white transition-opacity hover:opacity-90"
           style={{ backgroundColor: "#16a34a" }}
         >
           メンバー限定ページへ →
-        </Link>
+        </a>
       </div>
     </div>
   );
