@@ -73,10 +73,12 @@ export async function fetchMembersData(): Promise<MembersRawData> {
       "落札業者名": string | null; "発注方式": string | null; "入札方式": string | null;
     }>(supabase, "ken_rakusatsu", "案件番号,年度,分野分類,落札業者名,発注方式,入札方式"),
 
+    // 統一スキーマ: city も発注方式・案件番号が揃ったため ken と同じ形式で取得可能
     fetchAll<{
       "調達機関名": string; "調達案件名称": string; "案件番号": string | null;
-      "年度": number; "分野分類": string | null; "落札業者名": string | null; "入札方式": string | null;
-    }>(supabase, "city_rakusatsu", "調達機関名,調達案件名称,案件番号,年度,分野分類,落札業者名,入札方式"),
+      "年度": number; "分野分類": string | null; "落札業者名": string | null;
+      "入札方式": string | null; "発注方式": string | null;
+    }>(supabase, "city_rakusatsu", "調達機関名,調達案件名称,案件番号,年度,分野分類,落札業者名,入札方式,発注方式"),
   ]);
 
   // ── JOINマップ構築 ─────────────────────────────────────────
@@ -140,9 +142,11 @@ export async function fetchMembersData(): Promise<MembersRawData> {
         (r["入札方式"] ?? "").includes("指名")
       )
       .map((r) => ({ anken_no: r["案件番号"], year: r["年度"] })),
-    // 自治体：入札方式に「指名」を含む（案件番号で照合）
+    // 自治体：発注方式 or 入札方式に「指名」を含む（案件番号で照合）
     ...cityMetaRaw
-      .filter((r) => (r["入札方式"] ?? "").includes("指名") && r["案件番号"])
+      .filter((r) =>
+        ((r["発注方式"] ?? r["入札方式"] ?? "").includes("指名")) && r["案件番号"]
+      )
       .map((r) => ({ anken_no: r["案件番号"]!, year: r["年度"] })),
   ];
 

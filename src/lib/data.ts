@@ -247,51 +247,39 @@ export async function fetchAllRawData(): Promise<RawDataResult> {
     return all;
   };
 
-  const citySelect =
-    "調達機関名,入札方式,開札日,年度,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率,課所名,調達案件名称";
-  const kenSelect =
-    "入札方式,開札日,年度,発注部局,発注方式,予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率,課所名,調達案件名称";
+  // 統一スキーマ：ken/city 同じ列構成になったため共通セレクト文で取得
+  const UNIFIED_SELECT =
+    "調達機関名,入札方式,発注方式,開札日,年度,発注部局," +
+    "予定価格,落札金額,落札業者名,分野分類,不調,落札率,調査価格率,課所名,調達案件名称";
 
   const [cityRes, kenRes] = await Promise.all([
-    fetchAll("city_rakusatsu", citySelect),
-    fetchAll("ken_rakusatsu", kenSelect),
+    fetchAll("city_rakusatsu", UNIFIED_SELECT),
+    fetchAll("ken_rakusatsu",  UNIFIED_SELECT),
   ]);
 
-  const cityRows: RawRow[] = cityRes.map((r) => ({
-    source: "city" as const,
-    year: (r["年度"] as number) || 0,
-    date: (r["開札日"] as string) || "",
-    issuer: (r["調達機関名"] as string) || "その他",
-    field: (r["分野分類"] as string) || "その他",
-    amount: r["落札金額"] as number | null,
+  // 共通マッピング関数
+  const mapRow = (r: DbRow, source: "ken" | "city"): RawRow => ({
+    source,
+    year:         (r["年度"] as number) || 0,
+    date:         (r["開札日"] as string) || "",
+    // issuer: 発注部局（県土整備部等）があればそちら、なければ調達機関名（市区町村名）
+    issuer:       ((r["発注部局"] || r["調達機関名"] || "その他") as string),
+    field:        (r["分野分類"] as string) || "その他",
+    amount:       r["落札金額"] as number | null,
     plannedPrice: r["予定価格"] as number | null,
-    winRate: r["落札率"] as number | null,
-    surveyRate: r["調査価格率"] as number | null,
-    futeki: r["不調"] === true || r["不調"] === "true",
-    company: r["落札業者名"] as string | null,
-    procMethod: normalizeProcurement((r["入札方式"] || "") as string),
-    kashoName: (r["課所名"] as string) || "",
-    ankenName: (r["調達案件名称"] as string) || "",
-  }));
+    winRate:      r["落札率"] as number | null,
+    surveyRate:   r["調査価格率"] as number | null,
+    futeki:       r["不調"] === true || r["不調"] === "true",
+    company:      r["落札業者名"] as string | null,
+    procMethod:   normalizeProcurement(
+                    ((r["発注方式"] || r["入札方式"] || "") as string)
+                  ),
+    kashoName:    (r["課所名"] as string) || "",
+    ankenName:    (r["調達案件名称"] as string) || "",
+  });
 
-  const kenRows: RawRow[] = kenRes.map((r) => ({
-    source: "ken" as const,
-    year: (r["年度"] as number) || 0,
-    date: (r["開札日"] as string) || "",
-    issuer: (r["発注部局"] as string) || "その他部局",
-    field: (r["分野分類"] as string) || "その他",
-    amount: r["落札金額"] as number | null,
-    plannedPrice: r["予定価格"] as number | null,
-    winRate: r["落札率"] as number | null,
-    surveyRate: r["調査価格率"] as number | null,
-    futeki: r["不調"] === true || r["不調"] === "true",
-    company: r["落札業者名"] as string | null,
-    procMethod: normalizeProcurement(
-      ((r["発注方式"] || r["入札方式"] || "") as string)
-    ),
-    kashoName: (r["課所名"] as string) || "",
-    ankenName: (r["調達案件名称"] as string) || "",
-  }));
+  const cityRows: RawRow[] = cityRes.map((r) => mapRow(r, "city"));
+  const kenRows:  RawRow[] = kenRes.map( (r) => mapRow(r, "ken"));
 
   const rows = [...cityRows, ...kenRows];
 
