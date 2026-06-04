@@ -25,7 +25,7 @@ export default async function MembersPage() {
             >
               メンバー限定
             </span>
-            <h1 className="text-lg font-bold text-[#1a1a1a]">
+            <h1 className="text-xl font-bold text-[#1a1a1a]">
               埼玉県　参加業者分析ダッシュボード
             </h1>
           </div>
