@@ -137,9 +137,9 @@ export default function Dashboard({ rawData }: Props) {
         <FieldChart data={data.fields} issuerLabel={issuerLabel} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <ProcurementChart data={data.procurement} issuerLabel={issuerLabel} />
-        <DepartmentTable data={data.departments} />
+        {/* <DepartmentTable data={data.departments} /> 事務所ランキングと重複のため非表示 */}
         <WinRateStatsCard data={data.winRateStats} />
       </div>
 
