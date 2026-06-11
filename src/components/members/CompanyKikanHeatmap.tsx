@@ -1,14 +1,19 @@
 type Point = { company: string; kikan_name: string; cnt: number };
-type Props = { data: Point[] };
+type Props = {
+  data: Point[];
+  title: string;
+  subtitle?: string;
+  pinFirst?: string;
+};
 
-function sortKikans(kikans: string[], data: Point[]): string[] {
+function sortKikans(kikans: string[], data: Point[], pinFirst?: string): string[] {
   const total = new Map<string, number>();
   data.forEach((d) => total.set(d.kikan_name, (total.get(d.kikan_name) ?? 0) + d.cnt));
   return [...kikans].sort((a, b) => {
-    if (a === "埼玉県")    return -1;
-    if (b === "埼玉県")    return  1;
-    if (a === "さいたま市") return -1;
-    if (b === "さいたま市") return  1;
+    if (pinFirst) {
+      if (a === pinFirst) return -1;
+      if (b === pinFirst) return  1;
+    }
     return (total.get(b) ?? 0) - (total.get(a) ?? 0);
   });
 }
@@ -22,24 +27,24 @@ function warmColor(v: number, maxVal: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
-export default function CompanyKikanHeatmap({ data }: Props) {
+export default function CompanyKikanHeatmap({ data, title, subtitle, pinFirst }: Props) {
   if (!data.length) return (
     <div className="bg-white rounded-xl p-5" style={{ border: "1px solid var(--border)", minHeight: 240 }}>
-      <h2 className="text-sm font-semibold mb-1 text-[#1a1a1a]">業者×自治体 ヒートマップ</h2>
+      <h2 className="text-sm font-semibold mb-1 text-[#1a1a1a]">{title}</h2>
       <p className="text-xs text-[#9ca3af] text-center py-8">データなし</p>
     </div>
   );
 
   const companies = [...new Set(data.map((d) => d.company))];
   const rawKikans = [...new Set(data.map((d) => d.kikan_name))];
-  const kikans    = sortKikans(rawKikans, data);
+  const kikans    = sortKikans(rawKikans, data, pinFirst);
   const map       = new Map(data.map((d) => [`${d.company}||${d.kikan_name}`, d.cnt]));
   const maxVal    = Math.max(...data.map((d) => d.cnt));
 
   return (
     <div className="bg-white rounded-xl p-5" style={{ border: "1px solid var(--border)" }}>
-      <h2 className="text-sm font-semibold mb-1 text-[#1a1a1a]">業者×自治体 ヒートマップ</h2>
-      <p className="text-xs text-[#6b7280] mb-4">参加件数（濃いほど多い）。上位20社×上位20機関</p>
+      <h2 className="text-sm font-semibold mb-1 text-[#1a1a1a]">{title}</h2>
+      <p className="text-xs text-[#6b7280] mb-4">{subtitle ?? "参加件数（濃いほど多い）"}</p>
       <div className="overflow-x-auto w-full">
         <table className="text-[9px] border-collapse w-full">
           <thead>

@@ -22,13 +22,26 @@ function calcParticipation(rows: AnnotatedSankaRow[], limit = 30) {
   return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit)
     .map(([company, cnt]) => ({ company, cnt }));
 }
-function calcMatrix(rows: AnnotatedSankaRow[], topN = 20) {
+// 埼玉県ヒートマップ: ken行のみ、issuer（事務所名）を列に使用
+function calcKenMatrix(rows: AnnotatedSankaRow[], topN = 20) {
+  const kenRows = rows.filter((r) => r.kikan_name === "埼玉県");
+  const compCnt = new Map<string, number>(); const officeCnt = new Map<string, number>();
+  kenRows.forEach((r) => { compCnt.set(r.company,(compCnt.get(r.company)??0)+1); officeCnt.set(r.issuer,(officeCnt.get(r.issuer)??0)+1); });
+  const topCos = new Set([...compCnt.entries()].sort((a,b)=>b[1]-a[1]).slice(0,topN).map(([k])=>k));
+  const topOffices = new Set([...officeCnt.entries()].sort((a,b)=>b[1]-a[1]).slice(0,topN).map(([k])=>k));
+  const m = new Map<string, number>();
+  kenRows.forEach((r) => { if(!topCos.has(r.company)||!topOffices.has(r.issuer))return; const key=`${r.company}||${r.issuer}`; m.set(key,(m.get(key)??0)+1); });
+  return [...m.entries()].map(([key,cnt]) => { const sep=key.indexOf("||"); return { company:key.slice(0,sep), kikan_name:key.slice(sep+2), cnt }; });
+}
+// 自治体ヒートマップ: city行のみ、kikan_name（市区町村名）を列に使用
+function calcCityMatrix(rows: AnnotatedSankaRow[], topN = 20) {
+  const cityRows = rows.filter((r) => r.kikan_name !== "埼玉県");
   const compCnt = new Map<string, number>(); const kikanCnt = new Map<string, number>();
-  rows.forEach((r) => { compCnt.set(r.company,(compCnt.get(r.company)??0)+1); kikanCnt.set(r.kikan_name,(kikanCnt.get(r.kikan_name)??0)+1); });
+  cityRows.forEach((r) => { compCnt.set(r.company,(compCnt.get(r.company)??0)+1); kikanCnt.set(r.kikan_name,(kikanCnt.get(r.kikan_name)??0)+1); });
   const topCos = new Set([...compCnt.entries()].sort((a,b)=>b[1]-a[1]).slice(0,topN).map(([k])=>k));
   const topKikans = new Set([...kikanCnt.entries()].sort((a,b)=>b[1]-a[1]).slice(0,topN).map(([k])=>k));
   const m = new Map<string, number>();
-  rows.forEach((r) => { if(!topCos.has(r.company)||!topKikans.has(r.kikan_name))return; const key=`${r.company}||${r.kikan_name}`; m.set(key,(m.get(key)??0)+1); });
+  cityRows.forEach((r) => { if(!topCos.has(r.company)||!topKikans.has(r.kikan_name))return; const key=`${r.company}||${r.kikan_name}`; m.set(key,(m.get(key)??0)+1); });
   return [...m.entries()].map(([key,cnt]) => { const sep=key.indexOf("||"); return { company:key.slice(0,sep), kikan_name:key.slice(sep+2), cnt }; });
 }
 function calcWinRate(rows: AnnotatedSankaRow[], winRows: WinDataRow[], minCount: number) {
@@ -144,7 +157,8 @@ export default function MembersDashboard({ data }: Props) {
 
   // ── 集計 ─────────────────────────────────────────────────────
   const participation  = useMemo(() => calcParticipation(filteredSanka, 30), [filteredSanka]);
-  const matrix         = useMemo(() => calcMatrix(filteredSanka, 20), [filteredSanka]);
+  const kenMatrix      = useMemo(() => calcKenMatrix(filteredSanka, 20), [filteredSanka]);
+  const cityMatrix     = useMemo(() => calcCityMatrix(filteredSanka, 20), [filteredSanka]);
   const winRateAll     = useMemo(() => calcWinRate(filteredSanka, filteredWin, 1), [filteredSanka, filteredWin]);
   const winRateQuality = useMemo(() => calcWinRate(filteredSanka, filteredWin, 10), [filteredSanka, filteredWin]);
   const density        = useMemo(() => calcDensity(filteredSanka), [filteredSanka]);
@@ -170,7 +184,17 @@ export default function MembersDashboard({ data }: Props) {
       />
 
       <ParticipationRanking data={participation} />
-      <CompanyKikanHeatmap  data={matrix} />
+      <CompanyKikanHeatmap
+        data={kenMatrix}
+        title="業者×埼玉県 ヒートマップ"
+        subtitle="参加件数（濃いほど多い）。上位20社×各県土整備事務所・部局"
+      />
+      <CompanyKikanHeatmap
+        data={cityMatrix}
+        title="業者×自治体 ヒートマップ"
+        subtitle="参加件数（濃いほど多い）。上位20社×上位20自治体"
+        pinFirst="さいたま市"
+      />
       <WinRateRanking dataAll={winRateAll} dataQuality={winRateQuality} />
       <CompetitionDensity   data={density} />
       <CompetitionMatrix    data={compMatrix} />
