@@ -158,6 +158,16 @@ function normalizeProcurement(method: string): string {
 // 会計年度の月順
 const FY_MONTH_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 
+// ─── 県土整備部 配下の16事務所 ─────────────────────────────
+export const KENTO_OFFICES = [
+  "さいたま県土整備事務所", "北本県土整備事務所", "飯能県土整備事務所", "秩父県土整備事務所",
+  "熊谷県土整備事務所", "越谷県土整備事務所", "総合技術センター", "総合治水事務所",
+  "朝霞県土整備事務所", "川越県土整備事務所", "東松山県土整備事務所", "本庄県土整備事務所",
+  "行田県土整備事務所", "杉戸県土整備事務所", "西関東連絡道路建設事務所", "鉄道高架建設事務所",
+] as const;
+
+const KENTO_OFFICES_SET = new Set<string>(KENTO_OFFICES);
+
 // ─── 部局・分野の表示順 ─────────────────────────────────
 
 export const CITY_ORDER = [
@@ -179,12 +189,14 @@ export const CITY_ORDER = [
 ];
 
 export const DEPT_ORDER = [
-  "県土整備部",
-  "下水道局",
-  "企業局",
-  "農林部",
-  "都市整備部",
-  "その他部局",
+  // 県土整備部 配下の事務所（個別）
+  "さいたま県土整備事務所", "北本県土整備事務所", "飯能県土整備事務所", "秩父県土整備事務所",
+  "熊谷県土整備事務所", "越谷県土整備事務所", "総合技術センター", "総合治水事務所",
+  "朝霞県土整備事務所", "川越県土整備事務所", "東松山県土整備事務所", "本庄県土整備事務所",
+  "行田県土整備事務所", "杉戸県土整備事務所", "西関東連絡道路建設事務所", "鉄道高架建設事務所",
+  "県土整備部（その他）",
+  // 他の部局
+  "下水道局", "企業局", "農林部", "都市整備部", "その他部局",
 ];
 
 export const FIELD_ORDER = [
@@ -258,25 +270,35 @@ export async function fetchAllRawData(): Promise<RawDataResult> {
   ]);
 
   // 共通マッピング関数
-  const mapRow = (r: DbRow, source: "ken" | "city"): RawRow => ({
-    source,
-    year:         (r["年度"] as number) || 0,
-    date:         (r["開札日"] as string) || "",
-    // issuer: 発注部局（県土整備部等）があればそちら、なければ調達機関名（市区町村名）
-    issuer:       ((r["発注部局"] || r["調達機関名"] || "その他") as string),
-    field:        (r["分野分類"] as string) || "その他",
-    amount:       r["落札金額"] as number | null,
-    plannedPrice: r["予定価格"] as number | null,
-    winRate:      r["落札率"] as number | null,
-    surveyRate:   r["調査価格率"] as number | null,
-    futeki:       r["不調"] === true || r["不調"] === "true",
-    company:      r["落札業者名"] as string | null,
-    procMethod:   normalizeProcurement(
-                    ((r["発注方式"] || r["入札方式"] || "") as string)
-                  ),
-    kashoName:    (r["課所名"] as string) || "",
-    ankenName:    (r["調達案件名称"] as string) || "",
-  });
+  const mapRow = (r: DbRow, source: "ken" | "city"): RawRow => {
+    // 発注者: 県土整備部の場合は課所名から具体的な事務所名を抽出
+    let issuer: string;
+    if (source === "ken" && (r["発注部局"] as string) === "県土整備部") {
+      const kasho = (r["課所名"] as string) || "";
+      const office = (KENTO_OFFICES as readonly string[]).find((o) => kasho.includes(o));
+      issuer = office ?? "県土整備部（その他）";
+    } else {
+      issuer = ((r["発注部局"] || r["調達機関名"] || "その他") as string);
+    }
+    return {
+      source,
+      year:         (r["年度"] as number) || 0,
+      date:         (r["開札日"] as string) || "",
+      issuer,
+      field:        (r["分野分類"] as string) || "その他",
+      amount:       r["落札金額"] as number | null,
+      plannedPrice: r["予定価格"] as number | null,
+      winRate:      r["落札率"] as number | null,
+      surveyRate:   r["調査価格率"] as number | null,
+      futeki:       r["不調"] === true || r["不調"] === "true",
+      company:      r["落札業者名"] as string | null,
+      procMethod:   normalizeProcurement(
+                      ((r["発注方式"] || r["入札方式"] || "") as string)
+                    ),
+      kashoName:    (r["課所名"] as string) || "",
+      ankenName:    (r["調達案件名称"] as string) || "",
+    };
+  };
 
   const cityRows: RawRow[] = cityRes.map((r) => mapRow(r, "city"));
   const kenRows:  RawRow[] = kenRes.map( (r) => mapRow(r, "ken"));
@@ -465,9 +487,9 @@ export function computeDashboardData(rows: RawRow[]): DashboardData {
   // ── 県土整備事務所ランキング ──
   const kashoMap: Record<string, { count: number; amount: number }> = {};
   rows
-    .filter((r) => r.source === "ken" && r.issuer === "県土整備部" && r.kashoName)
+    .filter((r) => r.source === "ken" && KENTO_OFFICES_SET.has(r.issuer))
     .forEach((r) => {
-      const k = r.kashoName;
+      const k = r.issuer;
       if (!kashoMap[k]) kashoMap[k] = { count: 0, amount: 0 };
       kashoMap[k].count++;
       if (r.amount) kashoMap[k].amount += r.amount;
@@ -485,7 +507,7 @@ export function computeDashboardData(rows: RawRow[]): DashboardData {
     .filter(
       (r) =>
         r.source === "ken" &&
-        r.issuer === "県土整備部" &&
+        KENTO_OFFICES_SET.has(r.issuer) &&
         r.plannedPrice &&
         r.ankenName
     )

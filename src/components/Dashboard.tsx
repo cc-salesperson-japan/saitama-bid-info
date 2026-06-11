@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import type { RawDataResult, RawRow } from "@/lib/data";
-import { computeDashboardData, sortByOrder, DEPT_ORDER, FIELD_ORDER, CITY_ORDER } from "@/lib/data";
+import { computeDashboardData, sortByOrder, DEPT_ORDER, FIELD_ORDER, CITY_ORDER, KENTO_OFFICES } from "@/lib/data";
 import FilterBar from "./FilterBar";
 import SummaryCards from "./SummaryCards";
 import MonthlyChart from "./MonthlyChart";
@@ -69,6 +69,15 @@ export default function Dashboard({ rawData }: Props) {
     [allFields]
   );
 
+  // ── 県土整備部グループ（フィルターに渡す） ──────────────
+  const kenIssuerGroup = useMemo(() => {
+    const officeSet = new Set<string>(KENTO_OFFICES);
+    return {
+      label: "県土整備部",
+      members: sortedKenIssuers.filter((i) => officeSet.has(i)),
+    };
+  }, [sortedKenIssuers]);
+
   // ── フィルター状態 ────────────────────────────────────────
   const [year, setYear] = useState("all");
   const [selectedIssuers, setSelectedIssuers] = useState<Set<string>>(
@@ -117,6 +126,7 @@ export default function Dashboard({ rawData }: Props) {
         allFields={sortedFields}
         selectedFields={selectedFields}
         onFieldsChange={setSelectedFields}
+        kenIssuerGroup={kenIssuerGroup}
       />
 
       <SummaryCards data={data.summary} />

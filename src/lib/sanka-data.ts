@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "./supabase-server";
+import { KENTO_OFFICES } from "./data";
 
 // ─── 型定義 ──────────────────────────────────────────────────
 
@@ -96,12 +97,19 @@ export async function fetchMembersData(): Promise<MembersRawData> {
     cityMap.set(key, { year: r["年度"], field: r["分野分類"] });
   }
 
-  // ── 埼玉県の部局を kasho_name から抽出するヘルパー ─────────────
-  const KEN_DEPTS = ["県土整備部", "下水道局", "企業局", "農林部", "都市整備部"];
+  // ── 埼玉県の部局・事務所を kasho_name から抽出するヘルパー ───────
   function extractDept(kasho: string): string {
-    for (const d of KEN_DEPTS) {
-      if (kasho.includes(d)) return d;
+    // まず県土整備部の各事務所を確認（課所名に事務所名が含まれる場合）
+    for (const office of (KENTO_OFFICES as readonly string[])) {
+      if (kasho.includes(office)) return office;
     }
+    // 他の部局
+    const OTHER_DEPTS = ["下水道局", "企業局", "農林部", "都市整備部"];
+    for (const dept of OTHER_DEPTS) {
+      if (kasho.includes(dept)) return dept;
+    }
+    // 県土整備部だが具体的な事務所が特定できない場合
+    if (kasho.includes("県土整備")) return "県土整備部（その他）";
     return "その他部局";
   }
 

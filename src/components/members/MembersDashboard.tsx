@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import type { AnnotatedSankaRow, WinDataRow, ShimeiCaseRow, MembersRawData } from "@/lib/sanka-data";
-import { CITY_ORDER, FIELD_ORDER, DEPT_ORDER, sortByOrder } from "@/lib/data";
+import { CITY_ORDER, FIELD_ORDER, DEPT_ORDER, KENTO_OFFICES, sortByOrder } from "@/lib/data";
 import FilterBar from "@/components/FilterBar";
 import ParticipationRanking from "./ParticipationRanking";
 import CompanyKikanHeatmap  from "./CompanyKikanHeatmap";
@@ -105,6 +105,15 @@ export default function MembersDashboard({ data }: Props) {
     return sortByOrder([...fields], FIELD_ORDER);
   }, [sankaRows]);
 
+  // ── 県土整備部グループ（フィルターに渡す） ──────────────
+  const kenIssuerGroup = useMemo(() => {
+    const officeSet = new Set<string>(KENTO_OFFICES);
+    return {
+      label: "県土整備部",
+      members: kenIssuers.filter((i) => officeSet.has(i)),
+    };
+  }, [kenIssuers]);
+
   // ── フィルター状態（無料ページと同じ props 構造）──────────────
   const [year,             setYear]             = useState("all");
   const [selectedIssuers,  setSelectedIssuers]  = useState<Set<string>>(
@@ -157,6 +166,7 @@ export default function MembersDashboard({ data }: Props) {
         allFields={allFields}
         selectedFields={selectedFields}
         onFieldsChange={setSelectedFields}
+        kenIssuerGroup={kenIssuerGroup}
       />
 
       <ParticipationRanking data={participation} />

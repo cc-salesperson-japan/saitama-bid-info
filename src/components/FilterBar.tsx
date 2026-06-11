@@ -14,6 +14,8 @@ type Props = {
   allFields: string[];
   selectedFields: Set<string>;
   onFieldsChange: (s: Set<string>) => void;
+  // 県土整備部グループ（ラベル＋メンバー事務所リスト）
+  kenIssuerGroup?: { label: string; members: string[] };
 };
 
 const YEARS = [
@@ -55,6 +57,7 @@ export default function FilterBar({
   allFields,
   selectedFields,
   onFieldsChange,
+  kenIssuerGroup,
 }: Props) {
   const [issuerOpen, setIssuerOpen] = useState(false);
   const [fieldOpen, setFieldOpen] = useState(false);
@@ -92,6 +95,13 @@ export default function FilterBar({
   const kenAll = kenIssuers.every((i) => selectedIssuers.has(i));
   const kenNone = kenIssuers.every((i) => !selectedIssuers.has(i));
   const cityAll = cityIssuers.every((i) => selectedIssuers.has(i));
+
+  // ── 県土整備部グループ ──
+  const groupMembersSet = new Set(kenIssuerGroup?.members ?? []);
+  const groupMembers = kenIssuers.filter((i) => groupMembersSet.has(i));
+  const standaloneIssuers = kenIssuers.filter((i) => !groupMembersSet.has(i));
+  const groupAll  = groupMembers.length > 0 && groupMembers.every((i) => selectedIssuers.has(i));
+  const groupNone = groupMembers.every((i) => !selectedIssuers.has(i));
 
   return (
     <div
@@ -161,16 +171,57 @@ export default function FilterBar({
                 <input
                   type="checkbox"
                   checked={kenAll}
-                  ref={(el) => {
-                    if (el) el.indeterminate = !kenAll && !kenNone;
-                  }}
+                  ref={(el) => { if (el) el.indeterminate = !kenAll && !kenNone; }}
                   onChange={(e) => toggleGroup(kenIssuers, e.target.checked)}
                   className="w-3.5 h-3.5 accent-[#1a1a1a]"
                 />
                 <span className="text-xs font-medium text-[#1a1a1a]">埼玉県（全部局）</span>
               </label>
+
               <div className="space-y-1.5">
-                {kenIssuers.map((issuer) => (
+                {/* 県土整備部グループ（ある場合） */}
+                {kenIssuerGroup && groupMembers.length > 0 && (
+                  <div>
+                    {/* 県土整備部ヘッダー（一括選択チェックボックス） */}
+                    <label className="flex items-center gap-1.5 cursor-pointer mb-1">
+                      <input
+                        type="checkbox"
+                        checked={groupAll}
+                        ref={(el) => { if (el) el.indeterminate = !groupAll && !groupNone; }}
+                        onChange={(e) => toggleGroup(groupMembers, e.target.checked)}
+                        className="w-3.5 h-3.5 accent-[#1a1a1a]"
+                      />
+                      <span className="text-xs font-semibold text-[#1a1a1a]">
+                        {kenIssuerGroup.label}（{groupMembers.length}事務所）
+                      </span>
+                    </label>
+                    {/* 各事務所（インデント＋スクロール） */}
+                    <div
+                      className="ml-5 space-y-1 overflow-y-auto pr-1"
+                      style={{ maxHeight: "168px" }}
+                    >
+                      {groupMembers.map((office) => (
+                        <label key={office} className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedIssuers.has(office)}
+                            onChange={() => toggleIssuer(office)}
+                            className="w-3 h-3 accent-[#1a1a1a]"
+                          />
+                          <span className="text-xs text-[#1a1a1a]">{office}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 県土整備部グループがある場合は区切り線 */}
+                {kenIssuerGroup && groupMembers.length > 0 && standaloneIssuers.length > 0 && (
+                  <div className="border-t border-[#f0ece4] my-1" />
+                )}
+
+                {/* スタンドアロン部局（下水道局・企業局など） */}
+                {standaloneIssuers.map((issuer) => (
                   <label key={issuer} className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="checkbox"
