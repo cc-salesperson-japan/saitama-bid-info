@@ -51,9 +51,20 @@ function calcWinRate(rows: AnnotatedSankaRow[], winRows: WinDataRow[], minCount:
     .map(([company,participations])=>{ const wins=winMap.get(company)??0; return { company,participations,wins,win_rate:Math.round((wins/participations)*1000)/10 }; })
     .sort((a,b)=>b.win_rate-a.win_rate||b.participations-a.participations).slice(0,50);
 }
-function calcDensity(rows: AnnotatedSankaRow[]) {
+// 埼玉県競合密度: ken行のみ・issuer（事務所名）で集計
+function calcKenDensity(rows: AnnotatedSankaRow[]) {
+  const kenRows=rows.filter((r)=>r.kikan_name==="埼玉県");
+  const caseCoMap=new Map<string,Set<string>>(); const caseIssuerMap=new Map<string,string>();
+  kenRows.forEach((r)=>{ const key=`${r.anken_no}||${r.issuer}`; if(!caseCoMap.has(key)){caseCoMap.set(key,new Set());caseIssuerMap.set(key,r.issuer);} caseCoMap.get(key)!.add(r.company); });
+  const agg=new Map<string,{sum:number;count:number}>();
+  caseCoMap.forEach((cos,key)=>{ const issuer=caseIssuerMap.get(key)!; if(!agg.has(issuer))agg.set(issuer,{sum:0,count:0}); const a=agg.get(issuer)!; a.sum+=cos.size; a.count++; });
+  return [...agg.entries()].map(([kikan_name,{sum,count}])=>({ kikan_name,avg_competitors:Math.round(sum/count*10)/10,total_cases:count })).sort((a,b)=>b.avg_competitors-a.avg_competitors);
+}
+// 自治体競合密度: city行のみ・kikan_nameで集計
+function calcCityDensity(rows: AnnotatedSankaRow[]) {
+  const cityRows=rows.filter((r)=>r.kikan_name!=="埼玉県");
   const caseCoMap=new Map<string,Set<string>>(); const caseKikanMap=new Map<string,string>();
-  rows.forEach((r)=>{ const key=`${r.anken_no}||${r.kikan_name}`; if(!caseCoMap.has(key)){caseCoMap.set(key,new Set());caseKikanMap.set(key,r.kikan_name);} caseCoMap.get(key)!.add(r.company); });
+  cityRows.forEach((r)=>{ const key=`${r.anken_no}||${r.kikan_name}`; if(!caseCoMap.has(key)){caseCoMap.set(key,new Set());caseKikanMap.set(key,r.kikan_name);} caseCoMap.get(key)!.add(r.company); });
   const agg=new Map<string,{sum:number;count:number}>();
   caseCoMap.forEach((cos,key)=>{ const kikan=caseKikanMap.get(key)!; if(!agg.has(kikan))agg.set(kikan,{sum:0,count:0}); const a=agg.get(kikan)!; a.sum+=cos.size; a.count++; });
   return [...agg.entries()].map(([kikan_name,{sum,count}])=>({ kikan_name,avg_competitors:Math.round(sum/count*10)/10,total_cases:count })).sort((a,b)=>b.avg_competitors-a.avg_competitors);
@@ -161,7 +172,8 @@ export default function MembersDashboard({ data }: Props) {
   const cityMatrix     = useMemo(() => calcCityMatrix(filteredSanka, 20), [filteredSanka]);
   const winRateAll     = useMemo(() => calcWinRate(filteredSanka, filteredWin, 1), [filteredSanka, filteredWin]);
   const winRateQuality = useMemo(() => calcWinRate(filteredSanka, filteredWin, 10), [filteredSanka, filteredWin]);
-  const density        = useMemo(() => calcDensity(filteredSanka), [filteredSanka]);
+  const kenDensity     = useMemo(() => calcKenDensity(filteredSanka), [filteredSanka]);
+  const cityDensity    = useMemo(() => calcCityDensity(filteredSanka), [filteredSanka]);
   const compMatrix     = useMemo(() => calcCompMatrix(filteredSanka), [filteredSanka]);
   const newEntrants    = useMemo(() => calcNewEntrants(sankaRows, filteredSanka), [sankaRows, filteredSanka]);
   const shimei         = useMemo(() => calcShimei(filteredSanka, filteredShimei), [filteredSanka, filteredShimei]);
@@ -196,7 +208,8 @@ export default function MembersDashboard({ data }: Props) {
         pinFirst="さいたま市"
       />
       <WinRateRanking dataAll={winRateAll} dataQuality={winRateQuality} />
-      <CompetitionDensity   data={density} />
+      <CompetitionDensity data={kenDensity}  title="競合密度 ― 埼玉県（事務所・部局別）" />
+      <CompetitionDensity data={cityDensity} title="競合密度 ― 自治体別" />
       <CompetitionMatrix    data={compMatrix} />
       <CompanyActivity />
       {/* 新規参入トラッカーは精度改善まで非表示 */}
